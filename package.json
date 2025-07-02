@@ -1,0 +1,12 @@
+{
+  "name": "formula-d",
+  "version": "1.0.0",
+  "description": "Um jogo de tabuleiro usando ECS e Canvas 2D",
+  "scripts": {
+    "start": "parcel src/index.html",
+    "build": "parcel build src/index.html"
+  },
+  "devDependencies": {
+    "parcel": "^2.12.0"
+  }
+} 

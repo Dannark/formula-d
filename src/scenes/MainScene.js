@@ -4,9 +4,11 @@ import { Transform } from "../components/Transform.js";
 import { Renderable } from "../components/Renderable.js";
 import { Velocity } from "../components/Velocity.js";
 import { Track } from "../components/Track.js";
+import { Grid } from "../components/Grid.js";
 import { RenderSystem } from "../systems/RenderSystem.js";
 import { MovementSystem } from "../systems/MovementSystem.js";
 import { TrackRenderSystem } from "../systems/TrackRenderSystem.js";
+import { GridRenderSystem } from "../systems/GridRenderSystem.js";
 import { trackConfig, updateTrackPoints } from "../config/trackPoints.js";
 
 export class MainScene extends Scene {
@@ -78,8 +80,14 @@ export class MainScene extends Scene {
 
     // Primeiro adiciona o sistema de render principal (que limpa o canvas)
     this.world.addSystem(new RenderSystem(this.canvas));
+    // Adiciona o sistema de render da grid
+    this.world.addSystem(new GridRenderSystem(this.canvas));
     // Depois adiciona o sistema de render da pista
     this.world.addSystem(new TrackRenderSystem(this.canvas));
+
+    // Cria a entidade da grid
+    const gridEntity = new Entity().addComponent(new Grid(20, 1, "#E0E0E0"));
+    this.world.addEntity(gridEntity);
 
     // Cria a entidade da pista
     const trackEntity = new Entity().addComponent(

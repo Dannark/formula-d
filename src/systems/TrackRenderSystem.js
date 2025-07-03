@@ -393,7 +393,7 @@ export class TrackRenderSystem {
       // Fatores adaptativos baseados na curvatura
       const curvatureIntensity = Math.pow(angleFactor, 1); // Suaviza a transição
       const basePerpendicularFactor = 0.1;
-      const maxPerpendicularFactor = 1;
+      const maxPerpendicularFactor = 0.8;
       const baseControlFactor = 0.25;
       const maxControlFactor = 0.5;
       
@@ -434,8 +434,8 @@ export class TrackRenderSystem {
       const nextPoint = outerMostPoints[(index + 1) % outerMostPoints.length];
       
       // Calcula os pontos de controle para a curva roxa
-      const prevPoint = outerMostPoints[(index - 1 + outerMostPoints.length) % outerMostPoints.length];
-      const nextNextPoint = outerMostPoints[(index + 2) % outerMostPoints.length];
+      // const prevPoint = outerMostPoints[(index - 1 + outerMostPoints.length) % outerMostPoints.length];
+      // const nextNextPoint = outerMostPoints[(index + 2) % outerMostPoints.length];
       
       // Encontra os pontos originais correspondentes
       const origPoint = outerPoints[index];
@@ -489,7 +489,7 @@ export class TrackRenderSystem {
       // Fatores adaptativos baseados na curvatura
       const curvatureIntensity = Math.pow(angleFactor, 1);
       const basePerpendicularFactor = 0.1;
-      const maxPerpendicularFactor = 1;
+      const maxPerpendicularFactor = 0.8;
       const baseControlFactor = 0.25;
       const maxControlFactor = 0.5;
       
@@ -596,7 +596,7 @@ export class TrackRenderSystem {
       // Fatores adaptativos baseados na curvatura
       const curvatureIntensity = Math.pow(angleFactor, 1);
       const basePerpendicularFactor = 0.1;
-      const maxPerpendicularFactor = 1;
+      const maxPerpendicularFactor = 0.8;
       const baseControlFactor = 0.25;
       const maxControlFactor = 0.5;
       

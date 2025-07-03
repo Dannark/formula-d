@@ -392,8 +392,8 @@ export class TrackRenderSystem {
       
       // Fatores adaptativos baseados na curvatura
       const curvatureIntensity = Math.pow(angleFactor, 1); // Suaviza a transição
-      const basePerpendicularFactor = 0.3;
-      const maxPerpendicularFactor = 0.5;
+      const basePerpendicularFactor = 0.1;
+      const maxPerpendicularFactor = 1;
       const baseControlFactor = 0.25;
       const maxControlFactor = 0.5;
       

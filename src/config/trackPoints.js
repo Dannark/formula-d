@@ -18,7 +18,7 @@ const trackConfig = {
   points: createCircularPoints(
     window.innerWidth / 2, // centro x (meio da tela)
     window.innerHeight / 2, // centro y (meio da tela)
-    Math.min(window.innerWidth, window.innerHeight) * 0.35, // raio (35% do menor lado da tela)
+    Math.min(window.innerWidth, window.innerHeight) * 0.25, // raio (25% do menor lado da tela)
     12 // número de pontos
   ),
 
@@ -32,7 +32,7 @@ export function updateTrackPoints() {
   trackConfig.points = createCircularPoints(
     window.innerWidth / 2,
     window.innerHeight / 2,
-    Math.min(window.innerWidth, window.innerHeight) * 0.35,
+    Math.min(window.innerWidth, window.innerHeight) * 0.25,
     12
   );
 }

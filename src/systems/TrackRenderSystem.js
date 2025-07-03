@@ -426,10 +426,239 @@ export class TrackRenderSystem {
     
     ctx.stroke();
 
+    // Desenha as linhas perpendiculares a partir dos pontos médios das curvas roxas
+    ctx.strokeStyle = "red"; // Cor turquesa para as novas linhas
+    ctx.lineWidth = 2;
+    
+    outerMostPoints.forEach((point, index) => {
+      const nextPoint = outerMostPoints[(index + 1) % outerMostPoints.length];
+      
+      // Calcula os pontos de controle para a curva roxa
+      const prevPoint = outerMostPoints[(index - 1 + outerMostPoints.length) % outerMostPoints.length];
+      const nextNextPoint = outerMostPoints[(index + 2) % outerMostPoints.length];
+      
+      // Encontra os pontos originais correspondentes
+      const origPoint = outerPoints[index];
+      const origNextPoint = outerPoints[(index + 1) % outerPoints.length];
+
+      // Calcula os vetores das linhas laranjas (perpendiculares)
+      const orangeVector1 = {
+        x: point.x - origPoint.x,
+        y: point.y - origPoint.y
+      };
+      const orangeVector2 = {
+        x: nextPoint.x - origNextPoint.x,
+        y: nextPoint.y - origNextPoint.y
+      };
+
+      // Normaliza os vetores
+      const length1 = Math.sqrt(orangeVector1.x * orangeVector1.x + orangeVector1.y * orangeVector1.y);
+      const length2 = Math.sqrt(orangeVector2.x * orangeVector2.x + orangeVector2.y * orangeVector2.y);
+      
+      orangeVector1.x /= length1;
+      orangeVector1.y /= length1;
+      orangeVector2.x /= length2;
+      orangeVector2.y /= length2;
+
+      // Calcula o ângulo entre as linhas laranjas
+      const dotProduct = orangeVector1.x * orangeVector2.x + orangeVector1.y * orangeVector2.y;
+      const angle = Math.acos(Math.min(1, Math.max(-1, dotProduct)));
+      
+      // Determina a direção da curva usando o produto vetorial
+      const crossProduct = orangeVector1.x * orangeVector2.y - orangeVector1.y * orangeVector2.x;
+      const curveDirection = -Math.sign(crossProduct);
+      
+      // Calcula a direção do segmento atual
+      const direction = {
+        x: nextPoint.x - point.x,
+        y: nextPoint.y - point.y
+      };
+      const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
+      direction.x /= length;
+      direction.y /= length;
+
+      // Calcula o vetor perpendicular
+      const perpendicular = {
+        x: -direction.y,
+        y: direction.x
+      };
+
+      // Ajusta o offset baseado no ângulo entre as linhas laranjas
+      const angleFactor = Math.sin(angle / 2);
+      
+      // Fatores adaptativos baseados na curvatura
+      const curvatureIntensity = Math.pow(angleFactor, 1);
+      const basePerpendicularFactor = 0.1;
+      const maxPerpendicularFactor = 1;
+      const baseControlFactor = 0.25;
+      const maxControlFactor = 0.5;
+      
+      // Interpola os fatores baseado na curvatura
+      const perpendicularFactor = basePerpendicularFactor + (maxPerpendicularFactor - basePerpendicularFactor) * curvatureIntensity;
+      const controlFactor = baseControlFactor + (maxControlFactor - baseControlFactor) * curvatureIntensity;
+      
+      const perpendicularOffset = length * perpendicularFactor * angleFactor * curveDirection;
+      const controlDistance = length * controlFactor;
+
+      const cp1 = {
+        x: point.x + direction.x * controlDistance + perpendicular.x * perpendicularOffset,
+        y: point.y + direction.y * controlDistance + perpendicular.y * perpendicularOffset
+      };
+      
+      const cp2 = {
+        x: nextPoint.x - direction.x * controlDistance + perpendicular.x * perpendicularOffset,
+        y: nextPoint.y - direction.y * controlDistance + perpendicular.y * perpendicularOffset
+      };
+
+      // Calcula o ponto médio da curva roxa usando os pontos de controle
+      const midPoint = this.calculateBezierPoint(point, cp1, cp2, nextPoint, 0.5);
+      
+      // Calcula a direção tangente no ponto médio
+      const tangent = this.calculateBezierTangent(point, cp1, cp2, nextPoint, 0.5);
+      
+      // Calcula o vetor perpendicular à tangente
+      const midPerpendicular = {
+        x: tangent.y,
+        y: -tangent.x
+      };
+      
+      // Desenha a linha perpendicular a partir do ponto médio
+      ctx.beginPath();
+      ctx.moveTo(midPoint.x, midPoint.y);
+      ctx.lineTo(
+        midPoint.x + midPerpendicular.x * cellWidth,
+        midPoint.y + midPerpendicular.y * cellWidth
+      );
+      ctx.stroke();
+    });
+
+    // Desenha as curvas conectando os pontos finais das linhas vermelhas
+    ctx.strokeStyle = "gray"; // Mantém a mesma cor roxa para a última curva
+    ctx.lineWidth = 2;
+    
+    // Calcula os pontos finais das linhas vermelhas
+    const outerMostRedPoints = outerMostPoints.map((point, index) => {
+      const nextPoint = outerMostPoints[(index + 1) % outerMostPoints.length];
+      
+      // Reutiliza o cálculo dos pontos de controle da curva roxa
+      // const prevPoint = outerMostPoints[(index - 1 + outerMostPoints.length) % outerMostPoints.length];
+      // const nextNextPoint = outerMostPoints[(index + 2) % outerMostPoints.length];
+      
+      // Encontra os pontos originais correspondentes
+      const origPoint = outerPoints[index];
+      const origNextPoint = outerPoints[(index + 1) % outerPoints.length];
+
+      // Calcula os vetores das linhas laranjas (perpendiculares)
+      const orangeVector1 = {
+        x: point.x - origPoint.x,
+        y: point.y - origPoint.y
+      };
+      const orangeVector2 = {
+        x: nextPoint.x - origNextPoint.x,
+        y: nextPoint.y - origNextPoint.y
+      };
+
+      // Normaliza os vetores
+      const length1 = Math.sqrt(orangeVector1.x * orangeVector1.x + orangeVector1.y * orangeVector1.y);
+      const length2 = Math.sqrt(orangeVector2.x * orangeVector2.x + orangeVector2.y * orangeVector2.y);
+      
+      orangeVector1.x /= length1;
+      orangeVector1.y /= length1;
+      orangeVector2.x /= length2;
+      orangeVector2.y /= length2;
+
+      // Calcula o ângulo entre as linhas laranjas
+      const dotProduct = orangeVector1.x * orangeVector2.x + orangeVector1.y * orangeVector2.y;
+      const angle = Math.acos(Math.min(1, Math.max(-1, dotProduct)));
+      
+      // Determina a direção da curva usando o produto vetorial
+      const crossProduct = orangeVector1.x * orangeVector2.y - orangeVector1.y * orangeVector2.x;
+      const curveDirection = -Math.sign(crossProduct);
+      
+      // Calcula a direção do segmento atual
+      const direction = {
+        x: nextPoint.x - point.x,
+        y: nextPoint.y - point.y
+      };
+      const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
+      direction.x /= length;
+      direction.y /= length;
+
+      // Calcula o vetor perpendicular
+      const perpendicular = {
+        x: -direction.y,
+        y: direction.x
+      };
+
+      // Ajusta o offset baseado no ângulo entre as linhas laranjas
+      const angleFactor = Math.sin(angle / 2);
+      
+      // Fatores adaptativos baseados na curvatura
+      const curvatureIntensity = Math.pow(angleFactor, 1);
+      const basePerpendicularFactor = 0.1;
+      const maxPerpendicularFactor = 1;
+      const baseControlFactor = 0.25;
+      const maxControlFactor = 0.5;
+      
+      // Interpola os fatores baseado na curvatura
+      const perpendicularFactor = basePerpendicularFactor + (maxPerpendicularFactor - basePerpendicularFactor) * curvatureIntensity;
+      const controlFactor = baseControlFactor + (maxControlFactor - baseControlFactor) * curvatureIntensity;
+      
+      const perpendicularOffset = length * perpendicularFactor * angleFactor * curveDirection;
+      const controlDistance = length * controlFactor;
+
+      const cp1 = {
+        x: point.x + direction.x * controlDistance + perpendicular.x * perpendicularOffset,
+        y: point.y + direction.y * controlDistance + perpendicular.y * perpendicularOffset
+      };
+      
+      const cp2 = {
+        x: nextPoint.x - direction.x * controlDistance + perpendicular.x * perpendicularOffset,
+        y: nextPoint.y - direction.y * controlDistance + perpendicular.y * perpendicularOffset
+      };
+
+      // Calcula o ponto médio da curva roxa usando os pontos de controle
+      const midPoint = this.calculateBezierPoint(point, cp1, cp2, nextPoint, 0.5);
+      
+      // Calcula a direção tangente no ponto médio
+      const tangent = this.calculateBezierTangent(point, cp1, cp2, nextPoint, 0.5);
+      
+      // Calcula o vetor perpendicular à tangente
+      const midPerpendicular = {
+        x: tangent.y,
+        y: -tangent.x
+      };
+      
+      // Retorna o ponto final da linha vermelha
+      return {
+        x: midPoint.x + midPerpendicular.x * cellWidth,
+        y: midPoint.y + midPerpendicular.y * cellWidth
+      };
+    });
+
+    // Desenha as curvas de Bézier conectando os pontos finais das linhas vermelhas
+    ctx.beginPath();
+    ctx.moveTo(outerMostRedPoints[0].x, outerMostRedPoints[0].y);
+    
+    outerMostRedPoints.forEach((point, index) => {
+      const nextPoint = outerMostRedPoints[(index + 1) % outerMostRedPoints.length];
+      const prevPoint = outerMostRedPoints[(index - 1 + outerMostRedPoints.length) % outerMostRedPoints.length];
+      const nextNextPoint = outerMostRedPoints[(index + 2) % outerMostRedPoints.length];
+      
+      const controlPoints = this.calculateControlPoints(point, nextPoint, prevPoint, nextNextPoint);
+      
+      ctx.bezierCurveTo(
+        controlPoints.cp1.x,
+        controlPoints.cp1.y,
+        controlPoints.cp2.x,
+        controlPoints.cp2.y,
+        nextPoint.x,
+        nextPoint.y
+      );
+    });
+    
+    ctx.stroke();
+
     // TODO: Implementar o desenho das células curvas da pista
-    // 1. Para cada segmento, calcular pontos de controle para curvas de Bézier
-    // 2. Usar os pontos finais das linhas verdes como referência
-    // 3. Criar curvas suaves que seguem a direção da pista
-    // 4. Ajustar as curvas baseado no ângulo entre segmentos
   }
 }

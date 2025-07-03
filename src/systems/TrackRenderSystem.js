@@ -1,5 +1,5 @@
 import { Track } from "../components/Track.js";
-import { calculateDirection, getBisectorPerpendicular, multiplyVector, normalizeVector, getPerpendicular } from "../utils/mathUtils.js";
+import { calculateDirection, getBisectorPerpendicular, multiplyVector } from "../utils/mathUtils.js";
 
 export class TrackRenderSystem {
   constructor(canvas) {
@@ -16,48 +16,113 @@ export class TrackRenderSystem {
     }
   }
 
-  drawOuterTrackGuide(ctx, start, end) {
-    // Calcula o ponto médio da linha
-    const midPoint = {
-      x: (start.x + end.x) / 2,
-      y: (start.y + end.y) / 2
+  calculateDirection(point1, point2) {
+    const direction = {
+      x: point2.x - point1.x,
+      y: point2.y - point1.y
+    };
+    direction.length = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
+    return direction;
+  }
+
+  calculateControlPoints(point1, point2, prevPoint, nextPoint) {
+    // Calcula as direções dos segmentos
+    const currentDirection = calculateDirection(point1, point2);
+    const prevDirection = calculateDirection(prevPoint, point1);
+    const nextDirection = calculateDirection(point2, nextPoint);
+    const distance = currentDirection.length;
+
+    // Calcula os ângulos entre os segmentos
+    const angleStart = Math.atan2(
+      prevDirection.x * currentDirection.y - prevDirection.y * currentDirection.x,
+      prevDirection.x * currentDirection.x + prevDirection.y * currentDirection.y
+    );
+    const angleEnd = Math.atan2(
+      currentDirection.x * nextDirection.y - currentDirection.y * nextDirection.x,
+      currentDirection.x * nextDirection.x + currentDirection.y * nextDirection.y
+    );
+
+    // Normaliza os ângulos para o intervalo [-π, π]
+    const normalizedAngleStart = angleStart > Math.PI ? angleStart - 2 * Math.PI : angleStart < -Math.PI ? angleStart + 2 * Math.PI : angleStart;
+    const normalizedAngleEnd = angleEnd > Math.PI ? angleEnd - 2 * Math.PI : angleEnd < -Math.PI ? angleEnd + 2 * Math.PI : angleEnd;
+
+    // Ajusta a distância dos pontos de controle baseado nos ângulos
+    // Usa uma função suave para o fator do ângulo
+    const smoothAngleStart = Math.min(Math.abs(normalizedAngleStart), Math.PI/2);
+    const smoothAngleEnd = Math.min(Math.abs(normalizedAngleEnd), Math.PI/2);
+    
+    const angleFactorStart = (1 - Math.cos(smoothAngleStart)) / 2;
+    const angleFactorEnd = (1 - Math.cos(smoothAngleEnd)) / 2;
+    
+    const startControlDistance = distance * (0.2 + angleFactorStart * 0.3);
+    const endControlDistance = distance * (0.2 + angleFactorEnd * 0.3);
+
+    // Calcula o vetor perpendicular à direção
+    const perpendicular = {
+      x: currentDirection.y,
+      y: -currentDirection.x
     };
 
-    // Calcula o vetor direção usando nossa função existente
-    const direction = calculateDirection(start, end);
-    
-    // Usa getPerpendicular para obter o vetor perpendicular normalizado
-    const perpendicular = getPerpendicular(direction);
-    
-    // Define o comprimento da linha perpendicular
-    const lineLength = 60;
-    
-    // Calcula o ponto final da linha perpendicular
-    const endPoint = {
-      x: midPoint.x + perpendicular.x * lineLength,
-      y: midPoint.y + perpendicular.y * lineLength
-    };
-    
-    // Desenha a linha apenas para fora (usando apenas a parte positiva do vetor perpendicular)
-    ctx.beginPath();
-    ctx.strokeStyle = "purple";
-    ctx.lineWidth = 2;
-    ctx.moveTo(midPoint.x, midPoint.y);
-    ctx.lineTo(endPoint.x, endPoint.y);
-    ctx.stroke();
+    // Ajusta o offset perpendicular baseado nos ângulos usando uma função suave
+    const startPerpendicularOffset = distance * 0.15 * Math.sign(normalizedAngleStart) * Math.sin(smoothAngleStart);
+    const endPerpendicularOffset = distance * 0.15 * Math.sign(normalizedAngleEnd) * Math.sin(smoothAngleEnd);
 
-    // Retorna o ponto final para ser usado na conexão
-    return endPoint;
+    // Calcula os pontos de controle com desvio perpendicular ajustado pelos ângulos
+    return {
+      cp1: {
+        x: point1.x + currentDirection.x * startControlDistance + perpendicular.x * startPerpendicularOffset,
+        y: point1.y + currentDirection.y * startControlDistance + perpendicular.y * startPerpendicularOffset
+      },
+      cp2: {
+        x: point2.x - currentDirection.x * endControlDistance + perpendicular.x * endPerpendicularOffset,
+        y: point2.y - currentDirection.y * endControlDistance + perpendicular.y * endPerpendicularOffset
+      }
+    };
   }
 
   renderTrack(track) {
     const ctx = this.ctx;
     const points = track.points;
-    const cellWidth = 60; // Largura da célula do grid
-    const outerPoints = []; // Array para armazenar os pontos da faixa externa
+    const cellWidth = 60;
 
+    // Primeiro vamos desenhar a linha central (azul)
+    ctx.beginPath();
+    ctx.strokeStyle = "#0000FF";
+    ctx.lineWidth = 2;
+    
+    // Move para o primeiro ponto
+    ctx.moveTo(points[0].x, points[0].y);
+    
+    // Desenha as curvas de Bézier entre os pontos
+    points.forEach((point, index) => {
+      const prevPoint = points[(index - 1 + points.length) % points.length];
+      const nextPoint = points[(index + 1) % points.length];
+      const nextNextPoint = points[(index + 2) % points.length];
+      
+      const controlPoints = this.calculateControlPoints(point, nextPoint, prevPoint, nextNextPoint);
+      
+      // Usa bezierCurveTo para criar uma curva suave
+      ctx.bezierCurveTo(
+        controlPoints.cp1.x,
+        controlPoints.cp1.y,
+        controlPoints.cp2.x,
+        controlPoints.cp2.y,
+        nextPoint.x,
+        nextPoint.y
+      );
+    });
+    ctx.stroke();
+
+    // Agora desenha os pontos vermelhos em um loop separado
+    points.forEach(point => {
+      ctx.fillStyle = "#FF0000";
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Agora vamos desenhar as linhas verdes (perpendiculares)
     points.forEach((currentPoint, index) => {
-      // Pega o ponto anterior e o próximo (considerando o circuito fechado)
       const prevPoint = points[(index - 1 + points.length) % points.length];
       const nextPoint = points[(index + 1) % points.length];
       
@@ -65,71 +130,62 @@ export class TrackRenderSystem {
       const perpendicular = getBisectorPerpendicular(currentPoint, prevPoint, nextPoint);
       const scaledPerpendicular = multiplyVector(perpendicular, cellWidth);
 
-      // Calcula o ponto final do vetor perpendicular atual
-      const currentPerpendicularEnd = {
-        x: currentPoint.x + scaledPerpendicular.x,
-        y: currentPoint.y + scaledPerpendicular.y
-      };
-
-      // Calcula o vetor perpendicular do próximo ponto
-      const nextPerpendicular = getBisectorPerpendicular(nextPoint, currentPoint, points[(index + 2) % points.length]);
-      const nextScaledPerpendicular = multiplyVector(nextPerpendicular, cellWidth);
-      const nextPerpendicularEnd = {
-        x: nextPoint.x + nextScaledPerpendicular.x,
-        y: nextPoint.y + nextScaledPerpendicular.y
-      };
-
-      // Desenha o ponto atual
-      ctx.beginPath();
-      ctx.fillStyle = "#FF0000";
-      ctx.arc(currentPoint.x, currentPoint.y, 5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Desenha a linha para o próximo ponto
-      ctx.beginPath();
-      ctx.strokeStyle = "#0000FF";
-      ctx.lineWidth = 2;
-      ctx.moveTo(currentPoint.x, currentPoint.y);
-      ctx.lineTo(nextPoint.x, nextPoint.y);
-      ctx.stroke();
-
-      // Desenha a linha perpendicular (bissetriz)
+      // Desenha a linha verde
       ctx.beginPath();
       ctx.strokeStyle = "#00FF00";
       ctx.lineWidth = 2;
       ctx.moveTo(currentPoint.x, currentPoint.y);
-      ctx.lineTo(currentPerpendicularEnd.x, currentPerpendicularEnd.y);
+      ctx.lineTo(
+        currentPoint.x + scaledPerpendicular.x,
+        currentPoint.y + scaledPerpendicular.y
+      );
       ctx.stroke();
-
-      // Desenha a linha que conecta os pontos finais dos vetores perpendiculares
-      ctx.beginPath();
-      ctx.strokeStyle = "black";
-      ctx.lineWidth = 2;
-      ctx.moveTo(currentPerpendicularEnd.x, currentPerpendicularEnd.y);
-      ctx.lineTo(nextPerpendicularEnd.x, nextPerpendicularEnd.y);
-      ctx.stroke();
-
-      // Desenha a guia da faixa externa e armazena o ponto final
-      const outerPoint = this.drawOuterTrackGuide(ctx, currentPerpendicularEnd, nextPerpendicularEnd);
-      outerPoints.push(outerPoint);
     });
 
-    // Desenha a linha que conecta todos os pontos externos
+    // Desenha a linha preta conectando os pontos finais das linhas verdes com curvas Bézier
     ctx.beginPath();
-    ctx.strokeStyle = "purple";
+    ctx.strokeStyle = "#000000";
     ctx.lineWidth = 2;
     
-    // Move para o primeiro ponto
+    // Calcula os pontos externos (finais das linhas verdes)
+    const outerPoints = points.map((currentPoint, index) => {
+      const prevPoint = points[(index - 1 + points.length) % points.length];
+      const nextPoint = points[(index + 1) % points.length];
+      const perpendicular = getBisectorPerpendicular(currentPoint, prevPoint, nextPoint);
+      const scaledPerpendicular = multiplyVector(perpendicular, cellWidth);
+      return {
+        x: currentPoint.x + scaledPerpendicular.x,
+        y: currentPoint.y + scaledPerpendicular.y
+      };
+    });
+
+    // Move para o primeiro ponto externo
     ctx.moveTo(outerPoints[0].x, outerPoints[0].y);
     
-    // Conecta todos os pontos
+    // Desenha as curvas de Bézier entre os pontos externos
     outerPoints.forEach((point, index) => {
+      const prevPoint = outerPoints[(index - 1 + outerPoints.length) % outerPoints.length];
       const nextPoint = outerPoints[(index + 1) % outerPoints.length];
-      ctx.lineTo(nextPoint.x, nextPoint.y);
+      const nextNextPoint = outerPoints[(index + 2) % outerPoints.length];
+      
+      const controlPoints = this.calculateControlPoints(point, nextPoint, prevPoint, nextNextPoint);
+      
+      ctx.bezierCurveTo(
+        controlPoints.cp1.x,
+        controlPoints.cp1.y,
+        controlPoints.cp2.x,
+        controlPoints.cp2.y,
+        nextPoint.x,
+        nextPoint.y
+      );
     });
     
-    // Fecha o caminho conectando de volta ao primeiro ponto
-    ctx.closePath();
     ctx.stroke();
+
+    // TODO: Implementar o desenho das células curvas da pista
+    // 1. Para cada segmento, calcular pontos de controle para curvas de Bézier
+    // 2. Usar os pontos finais das linhas verdes como referência
+    // 3. Criar curvas suaves que seguem a direção da pista
+    // 4. Ajustar as curvas baseado no ângulo entre segmentos
   }
 }

@@ -10,6 +10,68 @@ import { TrackRenderSystem } from "../systems/TrackRenderSystem.js";
 import { trackConfig, updateTrackPoints } from "../config/trackPoints.js";
 
 export class MainScene extends Scene {
+  constructor(canvas) {
+    super(canvas);
+    this.isDragging = false;
+    this.selectedPointIndex = -1;
+  }
+
+  dragPoints(trackEntity) {
+    // Adiciona os event listeners para arrastar pontos
+    this.canvas.addEventListener("mousedown", (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // Encontra o ponto mais próximo do clique
+      let minDist = Infinity;
+      let closestPointIndex = -1;
+
+      trackConfig.points.forEach((point, index) => {
+        const dx = point.x - mouseX;
+        const dy = point.y - mouseY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < minDist && dist < 20) { // 20px de tolerância para selecionar
+          minDist = dist;
+          closestPointIndex = index;
+        }
+      });
+
+      if (closestPointIndex !== -1) {
+        this.isDragging = true;
+        this.selectedPointIndex = closestPointIndex;
+      }
+    });
+
+    this.canvas.addEventListener("mousemove", (e) => {
+      if (this.isDragging && this.selectedPointIndex !== -1) {
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Atualiza a posição do ponto
+        trackConfig.points[this.selectedPointIndex] = {
+          x: mouseX,
+          y: mouseY
+        };
+
+        // Atualiza os pontos na entidade da pista
+        trackEntity.getComponent(Track).points = trackConfig.points;
+      }
+    });
+
+    this.canvas.addEventListener("mouseup", () => {
+      if (this.isDragging) {
+        this.isDragging = false;
+        this.selectedPointIndex = -1;
+        
+        // Log da lista atualizada de pontos
+        console.log("Pontos atualizados:", JSON.stringify(trackConfig.points, null, 2));
+      }
+    });
+  }
+
   load() {
     console.log("Carregando MainScene");
     console.log("Track config:", trackConfig);
@@ -18,57 +80,6 @@ export class MainScene extends Scene {
     this.world.addSystem(new RenderSystem(this.canvas));
     // Depois adiciona o sistema de render da pista
     this.world.addSystem(new TrackRenderSystem(this.canvas));
-
-    trackConfig.points = [
-      {
-        x: 767.95,
-        y: 383.5,
-      },
-      {
-        x: 731.9845196459326,
-        y: 517.7249999999999,
-      },
-      {
-        x: 633.725,
-        y: 615.9845196459326,
-      },
-      {
-        x: 499.5,
-        y: 651.95,
-      },
-      {
-        x: 365.2750000000001,
-        y: 615.9845196459326,
-      },
-      {
-        x: 267.01548035406745,
-        y: 517.7249999999999,
-      },
-      {
-        x: 231.05,
-        y: 383.50000000000006,
-      },
-      {
-        x: 267.01548035406745,
-        y: 249.2750000000001,
-      },
-      {
-        x: 365.27499999999986,
-        y: 151.01548035406753,
-      },
-      {
-        x: 499.49999999999994,
-        y: 115.05000000000001,
-      },
-      {
-        x: 633.725,
-        y: 151.01548035406748,
-      },
-      {
-        x: 731.9845196459324,
-        y: 249.2749999999999,
-      },
-    ];
 
     // Cria a entidade da pista
     const trackEntity = new Entity().addComponent(
@@ -88,6 +99,8 @@ export class MainScene extends Scene {
       updateTrackPoints();
       trackEntity.getComponent(Track).points = trackConfig.points;
     });
+
+    this.dragPoints(trackEntity);
 
     // // Cria o retângulo móvel
     // const rectangle = new Entity()

@@ -34,7 +34,7 @@ export class OuterBoundaryRenderer {
       const isLargeCell = distanceToNext > distanceThreshold;
       // Define a cor baseada na distância
       if (isLargeCell ) {
-        ctx.strokeStyle = "rgba(255, 0, 0, 0.1)";
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.05)";
         // Armazena informações da célula grande para desenhar linhas extras depois
         this.largeCells.push({
           point,
@@ -251,7 +251,7 @@ export class OuterBoundaryRenderer {
       const finalControlPoints = TrackHelper.calculateControlPoints(finalPoint1, finalPoint2, finalPrevPoint, finalNextNextPoint);
       
       // Calcula o ponto na curva cinza
-      const finalMidPointRight = TrackHelper.calculateBezierPoint(finalPoint1, finalControlPoints.cp1, finalControlPoints.cp2, finalPoint2, 0.36);
+      const finalMidPointRight = TrackHelper.calculateBezierPoint(finalPoint1, finalControlPoints.cp1, finalControlPoints.cp2, finalPoint2, 0.33);
       
       // Desenha a linha perpendicular da direita
       ctx.beginPath();
@@ -285,7 +285,7 @@ export class OuterBoundaryRenderer {
       const finalLeftControlPoints = TrackHelper.calculateControlPoints(finalLeftPoint1, finalLeftPoint2, finalLeftPrevPoint, finalLeftNextNextPoint);
       
       // Calcula o ponto na curva cinza da célula anterior
-      const finalMidPointLeft = TrackHelper.calculateBezierPoint(finalLeftPoint1, finalLeftControlPoints.cp1, finalLeftControlPoints.cp2, finalLeftPoint2, 0.64);
+      const finalMidPointLeft = TrackHelper.calculateBezierPoint(finalLeftPoint1, finalLeftControlPoints.cp1, finalLeftControlPoints.cp2, finalLeftPoint2, 0.67);
       
       // Desenha a linha perpendicular da esquerda
       ctx.beginPath();

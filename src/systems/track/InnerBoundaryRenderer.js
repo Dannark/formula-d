@@ -7,8 +7,8 @@ export class InnerBoundaryRenderer {
     this.cellWidth = cellWidth;
   }
 
-  // Desenha as linhas verdes perpendiculares aos pontos da pista
-  renderGreenLines(points) {
+  // Desenha as linhas perpendiculares aos pontos da pista
+  renderPerpendicularLines(points) {
     const ctx = this.ctx;
     const cellWidth = this.cellWidth;
 
@@ -20,7 +20,7 @@ export class InnerBoundaryRenderer {
       const perpendicular = getBisectorPerpendicular(currentPoint, prevPoint, nextPoint);
       const scaledPerpendicular = multiplyVector(perpendicular, cellWidth);
 
-      // Desenha a linha verde
+      // Desenha a linha perpendicular
       ctx.beginPath();
       ctx.strokeStyle = "#00FF00";
       ctx.lineWidth = 2;
@@ -33,8 +33,8 @@ export class InnerBoundaryRenderer {
     });
   }
 
-  // Calcula os pontos finais das linhas verdes
-  calculateGreenLinesEndPoints(points) {
+  // Calcula os pontos finais das linhas perpendiculares
+  calculatePerpendicularLinesEndPoints(points) {
     const cellWidth = this.cellWidth;
 
     return points.map((currentPoint, index) => {
@@ -49,8 +49,8 @@ export class InnerBoundaryRenderer {
     });
   }
 
-  // Desenha a curva preta conectando os pontos finais das linhas verdes
-  renderBlackCurve(outerPoints) {
+  // Desenha a curva de fronteira conectando os pontos finais das linhas perpendiculares
+  renderBoundaryLines(outerPoints) {
     const ctx = this.ctx;
 
     ctx.beginPath();
@@ -82,16 +82,16 @@ export class InnerBoundaryRenderer {
   }
 
   render(points) {
-    // 1. Desenha as linhas verdes
-    this.renderGreenLines(points);
+    // 1. Desenha as linhas perpendiculares
+    this.renderPerpendicularLines(points);
     
-    // 2. Calcula os pontos finais das linhas verdes
-    const outerPoints = this.calculateGreenLinesEndPoints(points);
+    // 2. Calcula os pontos finais das linhas perpendiculares
+    const outerPoints = this.calculatePerpendicularLinesEndPoints(points);
     
-    // 3. Desenha a curva preta
-    this.renderBlackCurve(outerPoints);
+    // 3. Desenha a curva de fronteira
+    this.renderBoundaryLines(outerPoints);
 
-    // Retorna os pontos da curva preta para uso pela próxima faixa
+    // Retorna os pontos da curva de fronteira para uso pela próxima faixa
     return outerPoints;
   }
 } 

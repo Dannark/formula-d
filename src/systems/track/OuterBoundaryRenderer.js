@@ -6,8 +6,8 @@ export class OuterBoundaryRenderer {
     this.cellWidth = cellWidth;
   }
 
-  // Desenha as linhas vermelhas perpendiculares aos pontos médios das curvas roxas
-  renderRedLines(outerMostPoints, outerPoints) {
+  // Desenha as linhas perpendiculares aos pontos médios das curvas de fronteira
+  renderPerpendicularLines(outerMostPoints, outerPoints) {
     const ctx = this.ctx;
     const cellWidth = this.cellWidth;
 
@@ -21,31 +21,31 @@ export class OuterBoundaryRenderer {
       const origPoint = outerPoints[index];
       const origNextPoint = outerPoints[(index + 1) % outerPoints.length];
 
-      // Calcula os vetores das linhas laranjas (perpendiculares)
-      const orangeVector1 = {
+      // Calcula os vetores das linhas perpendiculares anteriores
+      const perpendicularVector1 = {
         x: point.x - origPoint.x,
         y: point.y - origPoint.y
       };
-      const orangeVector2 = {
+      const perpendicularVector2 = {
         x: nextPoint.x - origNextPoint.x,
         y: nextPoint.y - origNextPoint.y
       };
 
       // Normaliza os vetores
-      const length1 = Math.sqrt(orangeVector1.x * orangeVector1.x + orangeVector1.y * orangeVector1.y);
-      const length2 = Math.sqrt(orangeVector2.x * orangeVector2.x + orangeVector2.y * orangeVector2.y);
+      const length1 = Math.sqrt(perpendicularVector1.x * perpendicularVector1.x + perpendicularVector1.y * perpendicularVector1.y);
+      const length2 = Math.sqrt(perpendicularVector2.x * perpendicularVector2.x + perpendicularVector2.y * perpendicularVector2.y);
       
-      orangeVector1.x /= length1;
-      orangeVector1.y /= length1;
-      orangeVector2.x /= length2;
-      orangeVector2.y /= length2;
+      perpendicularVector1.x /= length1;
+      perpendicularVector1.y /= length1;
+      perpendicularVector2.x /= length2;
+      perpendicularVector2.y /= length2;
 
-      // Calcula o ângulo entre as linhas laranjas
-      const dotProduct = orangeVector1.x * orangeVector2.x + orangeVector1.y * orangeVector2.y;
+      // Calcula o ângulo entre as linhas perpendiculares
+      const dotProduct = perpendicularVector1.x * perpendicularVector2.x + perpendicularVector1.y * perpendicularVector2.y;
       const angle = Math.acos(Math.min(1, Math.max(-1, dotProduct)));
       
       // Determina a direção da curva usando o produto vetorial
-      const crossProduct = orangeVector1.x * orangeVector2.y - orangeVector1.y * orangeVector2.x;
+      const crossProduct = perpendicularVector1.x * perpendicularVector2.y - perpendicularVector1.y * perpendicularVector2.x;
       const curveDirection = -Math.sign(crossProduct);
       
       // Calcula a direção do segmento atual
@@ -63,7 +63,7 @@ export class OuterBoundaryRenderer {
         y: direction.x
       };
 
-      // Ajusta o offset baseado no ângulo entre as linhas laranjas
+      // Ajusta o offset baseado no ângulo entre as linhas perpendiculares
       const angleFactor = Math.sin(angle / 2);
       
       // Fatores adaptativos baseados na curvatura
@@ -90,7 +90,7 @@ export class OuterBoundaryRenderer {
         y: nextPoint.y - direction.y * controlDistance + perpendicular.y * perpendicularOffset
       };
 
-      // Calcula o ponto médio da curva roxa usando os pontos de controle
+      // Calcula o ponto médio da curva de fronteira usando os pontos de controle
       const midPoint = TrackHelper.calculateBezierPoint(point, cp1, cp2, nextPoint, 0.5);
       
       // Calcula a direção tangente no ponto médio
@@ -113,8 +113,8 @@ export class OuterBoundaryRenderer {
     });
   }
 
-  // Calcula os pontos finais das linhas vermelhas
-  calculateRedLinesEndPoints(outerMostPoints, outerPoints) {
+  // Calcula os pontos finais das linhas perpendiculares
+  calculatePerpendicularLinesEndPoints(outerMostPoints, outerPoints) {
     const cellWidth = this.cellWidth;
     
     return outerMostPoints.map((point, index) => {
@@ -124,31 +124,31 @@ export class OuterBoundaryRenderer {
       const origPoint = outerPoints[index];
       const origNextPoint = outerPoints[(index + 1) % outerPoints.length];
 
-      // Calcula os vetores das linhas laranjas (perpendiculares)
-      const orangeVector1 = {
+      // Calcula os vetores das linhas perpendiculares anteriores
+      const perpendicularVector1 = {
         x: point.x - origPoint.x,
         y: point.y - origPoint.y
       };
-      const orangeVector2 = {
+      const perpendicularVector2 = {
         x: nextPoint.x - origNextPoint.x,
         y: nextPoint.y - origNextPoint.y
       };
 
       // Normaliza os vetores
-      const length1 = Math.sqrt(orangeVector1.x * orangeVector1.x + orangeVector1.y * orangeVector1.y);
-      const length2 = Math.sqrt(orangeVector2.x * orangeVector2.x + orangeVector2.y * orangeVector2.y);
+      const length1 = Math.sqrt(perpendicularVector1.x * perpendicularVector1.x + perpendicularVector1.y * perpendicularVector1.y);
+      const length2 = Math.sqrt(perpendicularVector2.x * perpendicularVector2.x + perpendicularVector2.y * perpendicularVector2.y);
       
-      orangeVector1.x /= length1;
-      orangeVector1.y /= length1;
-      orangeVector2.x /= length2;
-      orangeVector2.y /= length2;
+      perpendicularVector1.x /= length1;
+      perpendicularVector1.y /= length1;
+      perpendicularVector2.x /= length2;
+      perpendicularVector2.y /= length2;
 
-      // Calcula o ângulo entre as linhas laranjas
-      const dotProduct = orangeVector1.x * orangeVector2.x + orangeVector1.y * orangeVector2.y;
+      // Calcula o ângulo entre as linhas perpendiculares
+      const dotProduct = perpendicularVector1.x * perpendicularVector2.x + perpendicularVector1.y * perpendicularVector2.y;
       const angle = Math.acos(Math.min(1, Math.max(-1, dotProduct)));
       
       // Determina a direção da curva usando o produto vetorial
-      const crossProduct = orangeVector1.x * orangeVector2.y - orangeVector1.y * orangeVector2.x;
+      const crossProduct = perpendicularVector1.x * perpendicularVector2.y - perpendicularVector1.y * perpendicularVector2.x;
       const curveDirection = -Math.sign(crossProduct);
       
       // Calcula a direção do segmento atual
@@ -166,7 +166,7 @@ export class OuterBoundaryRenderer {
         y: direction.x
       };
 
-      // Ajusta o offset baseado no ângulo entre as linhas laranjas
+      // Ajusta o offset baseado no ângulo entre as linhas perpendiculares
       const angleFactor = Math.sin(angle / 2);
       
       // Fatores adaptativos baseados na curvatura
@@ -193,7 +193,7 @@ export class OuterBoundaryRenderer {
         y: nextPoint.y - direction.y * controlDistance + perpendicular.y * perpendicularOffset
       };
 
-      // Calcula o ponto médio da curva roxa usando os pontos de controle
+      // Calcula o ponto médio da curva de fronteira usando os pontos de controle
       const midPoint = TrackHelper.calculateBezierPoint(point, cp1, cp2, nextPoint, 0.5);
       
       // Calcula a direção tangente no ponto médio
@@ -205,7 +205,7 @@ export class OuterBoundaryRenderer {
         y: -tangent.x
       };
       
-      // Retorna o ponto final da linha vermelha
+      // Retorna o ponto final da linha perpendicular
       return {
         x: midPoint.x + midPerpendicular.x * cellWidth,
         y: midPoint.y + midPerpendicular.y * cellWidth
@@ -213,21 +213,21 @@ export class OuterBoundaryRenderer {
     });
   }
 
-  // Desenha as curvas cinzas conectando os pontos finais das linhas vermelhas
-  renderGrayCurves(outerMostRedPoints) {
+  // Desenha as curvas de fronteira conectando os pontos finais das linhas perpendiculares
+  renderBoundaryLines(outerMostPoints) {
     const ctx = this.ctx;
 
     ctx.strokeStyle = "gray";
     ctx.lineWidth = 2;
     
-    // Desenha as curvas de Bézier conectando os pontos finais das linhas vermelhas
+    // Desenha as curvas de Bézier conectando os pontos finais das linhas perpendiculares
     ctx.beginPath();
-    ctx.moveTo(outerMostRedPoints[0].x, outerMostRedPoints[0].y);
+    ctx.moveTo(outerMostPoints[0].x, outerMostPoints[0].y);
     
-    outerMostRedPoints.forEach((point, index) => {
-      const nextPoint = outerMostRedPoints[(index + 1) % outerMostRedPoints.length];
-      const prevPoint = outerMostRedPoints[(index - 1 + outerMostRedPoints.length) % outerMostRedPoints.length];
-      const nextNextPoint = outerMostRedPoints[(index + 2) % outerMostRedPoints.length];
+    outerMostPoints.forEach((point, index) => {
+      const nextPoint = outerMostPoints[(index + 1) % outerMostPoints.length];
+      const prevPoint = outerMostPoints[(index - 1 + outerMostPoints.length) % outerMostPoints.length];
+      const nextNextPoint = outerMostPoints[(index + 2) % outerMostPoints.length];
       
       const controlPoints = TrackHelper.calculateControlPoints(point, nextPoint, prevPoint, nextNextPoint);
       
@@ -245,13 +245,13 @@ export class OuterBoundaryRenderer {
   }
 
   render(outerMostPoints, outerPoints) {
-    // 1. Desenha as linhas vermelhas
-    this.renderRedLines(outerMostPoints, outerPoints);
+    // 1. Desenha as linhas perpendiculares
+    this.renderPerpendicularLines(outerMostPoints, outerPoints);
     
-    // 2. Calcula os pontos finais das linhas vermelhas
-    const outerMostRedPoints = this.calculateRedLinesEndPoints(outerMostPoints, outerPoints);
+    // 2. Calcula os pontos finais das linhas perpendiculares
+    const finalBoundaryPoints = this.calculatePerpendicularLinesEndPoints(outerMostPoints, outerPoints);
     
-    // 3. Desenha as curvas cinzas
-    this.renderGrayCurves(outerMostRedPoints);
+    // 3. Desenha as curvas de fronteira
+    this.renderBoundaryLines(finalBoundaryPoints);
   }
 } 

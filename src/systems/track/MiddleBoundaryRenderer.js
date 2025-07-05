@@ -6,8 +6,8 @@ export class MiddleBoundaryRenderer {
     this.cellWidth = cellWidth;
   }
 
-  // Desenha as linhas laranjas nos pontos médios das curvas de Bézier pretas
-  renderOrangeLines(outerPoints) {
+  // Desenha as linhas perpendiculares nos pontos médios das curvas de fronteira
+  renderPerpendicularLines(outerPoints) {
     const ctx = this.ctx;
     const cellWidth = this.cellWidth;
 
@@ -33,7 +33,7 @@ export class MiddleBoundaryRenderer {
         y: -tangent.x
       };
       
-      // Desenha a linha laranja
+      // Desenha a linha perpendicular
       ctx.beginPath();
       ctx.moveTo(midPoint.x, midPoint.y);
       ctx.lineTo(
@@ -44,8 +44,8 @@ export class MiddleBoundaryRenderer {
     });
   }
 
-  // Calcula os pontos finais das linhas laranjas
-  calculateOrangeLinesEndPoints(outerPoints) {
+  // Calcula os pontos finais das linhas perpendiculares
+  calculatePerpendicularLinesEndPoints(outerPoints) {
     const cellWidth = this.cellWidth;
 
     return outerPoints.map((point, index) => {
@@ -69,14 +69,14 @@ export class MiddleBoundaryRenderer {
     });
   }
 
-  // Desenha as curvas roxas conectando os pontos finais das linhas laranjas
-  renderPurpleCurves(outerMostPoints, outerPoints) {
+  // Desenha as curvas de fronteira conectando os pontos finais das linhas perpendiculares
+  renderBoundaryLines(outerMostPoints, outerPoints) {
     const ctx = this.ctx;
 
     ctx.strokeStyle = "#800080"; // Roxo
     ctx.lineWidth = 2;
     
-    // Desenha as curvas de Bézier roxas conectando os pontos
+    // Desenha as curvas de Bézier conectando os pontos
     ctx.beginPath();
     ctx.moveTo(outerMostPoints[0].x, outerMostPoints[0].y);
     
@@ -89,31 +89,31 @@ export class MiddleBoundaryRenderer {
       const origPrevPoint = outerPoints[(index - 1 + outerPoints.length) % outerPoints.length];
       const origNextPoint = outerPoints[(index + 1) % outerPoints.length];
 
-      // Calcula os vetores das linhas laranjas (perpendiculares)
-      const orangeVector1 = {
+      // Calcula os vetores das linhas perpendiculares
+      const perpendicularVector1 = {
         x: point.x - origPoint.x,
         y: point.y - origPoint.y
       };
-      const orangeVector2 = {
+      const perpendicularVector2 = {
         x: nextPoint.x - origNextPoint.x,
         y: nextPoint.y - origNextPoint.y
       };
 
       // Normaliza os vetores
-      const length1 = Math.sqrt(orangeVector1.x * orangeVector1.x + orangeVector1.y * orangeVector1.y);
-      const length2 = Math.sqrt(orangeVector2.x * orangeVector2.x + orangeVector2.y * orangeVector2.y);
+      const length1 = Math.sqrt(perpendicularVector1.x * perpendicularVector1.x + perpendicularVector1.y * perpendicularVector1.y);
+      const length2 = Math.sqrt(perpendicularVector2.x * perpendicularVector2.x + perpendicularVector2.y * perpendicularVector2.y);
       
-      orangeVector1.x /= length1;
-      orangeVector1.y /= length1;
-      orangeVector2.x /= length2;
-      orangeVector2.y /= length2;
+      perpendicularVector1.x /= length1;
+      perpendicularVector1.y /= length1;
+      perpendicularVector2.x /= length2;
+      perpendicularVector2.y /= length2;
 
-      // Calcula o ângulo entre as linhas laranjas
-      const dotProduct = orangeVector1.x * orangeVector2.x + orangeVector1.y * orangeVector2.y;
+      // Calcula o ângulo entre as linhas perpendiculares
+      const dotProduct = perpendicularVector1.x * perpendicularVector2.x + perpendicularVector1.y * perpendicularVector2.y;
       const angle = Math.acos(Math.min(1, Math.max(-1, dotProduct)));
       
       // Determina a direção da curva usando o produto vetorial
-      const crossProduct = orangeVector1.x * orangeVector2.y - orangeVector1.y * orangeVector2.x;
+      const crossProduct = perpendicularVector1.x * perpendicularVector2.y - perpendicularVector1.y * perpendicularVector2.x;
       const curveDirection = -Math.sign(crossProduct); // Invertido para corresponder à direção desejada
       
       // Calcula a direção do segmento atual
@@ -131,7 +131,7 @@ export class MiddleBoundaryRenderer {
         y: direction.x
       };
 
-      // Ajusta o offset baseado no ângulo entre as linhas laranjas
+      // Ajusta o offset baseado no ângulo entre as linhas perpendiculares
       const angleFactor = Math.sin(angle / 2); // 0 para linhas paralelas, 1 para ângulo de 180°
       
       // Fatores adaptativos baseados na curvatura
@@ -172,16 +172,16 @@ export class MiddleBoundaryRenderer {
   }
 
   render(outerPoints) {
-    // 1. Desenha as linhas laranjas
-    this.renderOrangeLines(outerPoints);
+    // 1. Desenha as linhas perpendiculares
+    this.renderPerpendicularLines(outerPoints);
     
-    // 2. Calcula os pontos finais das linhas laranjas
-    const outerMostPoints = this.calculateOrangeLinesEndPoints(outerPoints);
+    // 2. Calcula os pontos finais das linhas perpendiculares
+    const outerMostPoints = this.calculatePerpendicularLinesEndPoints(outerPoints);
     
-    // 3. Desenha as curvas roxas
-    this.renderPurpleCurves(outerMostPoints, outerPoints);
+    // 3. Desenha as curvas de fronteira
+    this.renderBoundaryLines(outerMostPoints, outerPoints);
 
-    // Retorna os pontos da curva roxa para uso pela próxima faixa
+    // Retorna os pontos da curva de fronteira para uso pela próxima faixa
     return outerMostPoints;
   }
 } 

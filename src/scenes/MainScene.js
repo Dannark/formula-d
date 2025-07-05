@@ -10,6 +10,7 @@ import { MovementSystem } from "../systems/MovementSystem.js";
 import { TrackRenderSystem } from "../systems/track/TrackRenderSystem.js";
 import { GridRenderSystem } from "../systems/GridRenderSystem.js";
 import { trackConfig, updateTrackPoints, adjustTrackPoints } from "../config/trackPoints.js";
+import { registerTrackEntity } from "../debug/TrackDebug.js";
 
 export class MainScene extends Scene {
   constructor(canvas) {
@@ -117,6 +118,9 @@ export class MainScene extends Scene {
     );
 
     this.world.addEntity(trackEntity);
+    
+    // Registra a entidade no sistema de debug
+    registerTrackEntity(trackEntity);
     // console.log(
     //   "Entidade da pista criada com",
     //   trackConfig.points.length,

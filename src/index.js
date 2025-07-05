@@ -1,5 +1,7 @@
 import { SceneManager } from "./scenes/SceneManager.js";
 import { MainScene } from "./scenes/MainScene.js";
+// Importa o sistema de debug (opcional - pode ser removido sem impacto)
+import "./debug/TrackDebug.js";
 
 const canvas = document.getElementById("gameCanvas");
 canvas.width = window.innerWidth;

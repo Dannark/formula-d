@@ -6,20 +6,16 @@ export class OuterBoundaryRenderer {
     this.cellWidth = cellWidth;
   }
 
-  render(outerMostPoints, outerPoints) {
+  // Desenha as linhas vermelhas perpendiculares aos pontos médios das curvas roxas
+  renderRedLines(outerMostPoints, outerPoints) {
     const ctx = this.ctx;
     const cellWidth = this.cellWidth;
 
-    // Desenha as linhas perpendiculares a partir dos pontos médios das curvas roxas
     ctx.strokeStyle = "red";
     ctx.lineWidth = 2;
     
     outerMostPoints.forEach((point, index) => {
       const nextPoint = outerMostPoints[(index + 1) % outerMostPoints.length];
-      
-      // Calcula os pontos de controle para a curva roxa
-      // const prevPoint = outerMostPoints[(index - 1 + outerMostPoints.length) % outerMostPoints.length];
-      // const nextNextPoint = outerMostPoints[(index + 2) % outerMostPoints.length];
       
       // Encontra os pontos originais correspondentes
       const origPoint = outerPoints[index];
@@ -115,18 +111,14 @@ export class OuterBoundaryRenderer {
       );
       ctx.stroke();
     });
+  }
 
-    // Desenha as curvas conectando os pontos finais das linhas vermelhas
-    ctx.strokeStyle = "gray"; // Mantém a mesma cor roxa para a última curva
-    ctx.lineWidth = 2;
+  // Calcula os pontos finais das linhas vermelhas
+  calculateRedLinesEndPoints(outerMostPoints, outerPoints) {
+    const cellWidth = this.cellWidth;
     
-    // Calcula os pontos finais das linhas vermelhas
-    const outerMostRedPoints = outerMostPoints.map((point, index) => {
+    return outerMostPoints.map((point, index) => {
       const nextPoint = outerMostPoints[(index + 1) % outerMostPoints.length];
-      
-      // Reutiliza o cálculo dos pontos de controle da curva roxa
-      // const prevPoint = outerMostPoints[(index - 1 + outerMostPoints.length) % outerMostPoints.length];
-      // const nextNextPoint = outerMostPoints[(index + 2) % outerMostPoints.length];
       
       // Encontra os pontos originais correspondentes
       const origPoint = outerPoints[index];
@@ -219,7 +211,15 @@ export class OuterBoundaryRenderer {
         y: midPoint.y + midPerpendicular.y * cellWidth
       };
     });
+  }
 
+  // Desenha as curvas cinzas conectando os pontos finais das linhas vermelhas
+  renderGrayCurves(outerMostRedPoints) {
+    const ctx = this.ctx;
+
+    ctx.strokeStyle = "gray";
+    ctx.lineWidth = 2;
+    
     // Desenha as curvas de Bézier conectando os pontos finais das linhas vermelhas
     ctx.beginPath();
     ctx.moveTo(outerMostRedPoints[0].x, outerMostRedPoints[0].y);
@@ -242,5 +242,16 @@ export class OuterBoundaryRenderer {
     });
     
     ctx.stroke();
+  }
+
+  render(outerMostPoints, outerPoints) {
+    // 1. Desenha as linhas vermelhas
+    this.renderRedLines(outerMostPoints, outerPoints);
+    
+    // 2. Calcula os pontos finais das linhas vermelhas
+    const outerMostRedPoints = this.calculateRedLinesEndPoints(outerMostPoints, outerPoints);
+    
+    // 3. Desenha as curvas cinzas
+    this.renderGrayCurves(outerMostRedPoints);
   }
 } 

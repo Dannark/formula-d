@@ -9,7 +9,7 @@ import { RenderSystem } from "../systems/RenderSystem.js";
 import { MovementSystem } from "../systems/MovementSystem.js";
 import { TrackRenderSystem } from "../systems/TrackRenderSystem.js";
 import { GridRenderSystem } from "../systems/GridRenderSystem.js";
-import { trackConfig, updateTrackPoints } from "../config/trackPoints.js";
+import { trackConfig, updateTrackPoints, adjustTrackPoints } from "../config/trackPoints.js";
 
 export class MainScene extends Scene {
   constructor(canvas) {
@@ -52,14 +52,36 @@ export class MainScene extends Scene {
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
+        // Cria uma cópia do array de pontos atual
+        const currentPoints = [...trackConfig.points];
+
         // Atualiza a posição do ponto
-        trackConfig.points[this.selectedPointIndex] = {
+        currentPoints[this.selectedPointIndex] = {
           x: mouseX,
           y: mouseY
         };
 
-        // Atualiza os pontos na entidade da pista
-        trackEntity.getComponent(Track).points = trackConfig.points;
+        // Gera o novo array de pontos e o novo índice selecionado
+        const { points: newPoints, newSelectedIndex } = adjustTrackPoints(
+          currentPoints,
+          trackConfig.maxPointDistance,
+          this.selectedPointIndex
+        );
+
+        // Atualiza os pontos apenas se houver mudança
+        if (newPoints.length !== trackConfig.points.length) {
+          console.log('Número de pontos mudou:', {
+            antigo: trackConfig.points.length,
+            novo: newPoints.length,
+            indiceAntigo: this.selectedPointIndex,
+            indiceNovo: newSelectedIndex
+          });
+        }
+
+        // Atualiza os pontos na configuração e na entidade
+        trackConfig.points = newPoints;
+        trackEntity.getComponent(Track).points = newPoints;
+        this.selectedPointIndex = newSelectedIndex;
       }
     });
 

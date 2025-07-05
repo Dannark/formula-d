@@ -206,11 +206,18 @@ export class TrackRenderSystem {
     ctx.stroke();
 
     // Agora desenha os pontos vermelhos em um loop separado
-    points.forEach(point => {
+    points.forEach((point, index) => {
       ctx.fillStyle = "#FF0000";
       ctx.beginPath();
-      ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+      ctx.arc(point.x, point.y, 15, 0, Math.PI * 2);
       ctx.fill();
+
+      // Adiciona o número do índice
+      ctx.fillStyle = "white";
+      ctx.font = "16px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(index.toString(), point.x, point.y);
     });
 
     // Agora vamos desenhar as linhas verdes (perpendiculares)

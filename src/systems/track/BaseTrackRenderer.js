@@ -1,4 +1,5 @@
 import { TrackHelper } from "./TrackHelper.js";
+import { trackColorConfig } from "./TrackColorConfig.js";
 
 export class BaseTrackRenderer {
   constructor(ctx) {
@@ -10,7 +11,7 @@ export class BaseTrackRenderer {
     const ctx = this.ctx;
 
     ctx.beginPath();
-    ctx.strokeStyle = "#0000FF";
+    ctx.strokeStyle = trackColorConfig.getColor("#0000FF");
     ctx.lineWidth = 2;
     
     // Move para o primeiro ponto
@@ -41,17 +42,20 @@ export class BaseTrackRenderer {
     const ctx = this.ctx;
 
     points.forEach((point, index) => {
-      ctx.fillStyle = "#FF0000";
+      ctx.fillStyle = trackColorConfig.getColor("#FF0000");
       ctx.beginPath();
-      ctx.arc(point.x, point.y, 15, 0, Math.PI * 2);
+      const size = !trackColorConfig.useUniformColor ? 15 : 5;
+      ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
       ctx.fill();
 
-      // Adiciona o número do índice
-      ctx.fillStyle = "white";
-      ctx.font = "16px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(index.toString(), point.x, point.y);
+      if (!trackColorConfig.useUniformColor) {
+        // Adiciona o número do índice
+        ctx.fillStyle = trackColorConfig.getColor("white");
+        ctx.font = "16px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(index.toString(), point.x, point.y);
+      }
     });
   }
 

@@ -1,4 +1,5 @@
 import { TrackHelper } from "./TrackHelper.js";
+import { trackColorConfig } from "./TrackColorConfig.js";
 
 export class OuterBoundaryRenderer {
   constructor(ctx, cellWidth) {
@@ -34,7 +35,7 @@ export class OuterBoundaryRenderer {
       const isLargeCell = distanceToNext > distanceThreshold;
       // Define a cor baseada na distância
       if (isLargeCell ) {
-        ctx.strokeStyle = "rgba(255, 0, 0, 0.05)";
+        ctx.strokeStyle = !trackColorConfig.useUniformColor ? "rgba(255, 0, 0, 0.05)" : "rgba(255, 0, 0, 0.00)";
         // Armazena informações da célula grande para desenhar linhas extras depois
         this.largeCells.push({
           point,
@@ -44,7 +45,7 @@ export class OuterBoundaryRenderer {
           origNextPoint: outerPoints[(index + 1) % outerPoints.length]
         });
       } else {
-        ctx.strokeStyle = "red";
+        ctx.strokeStyle = trackColorConfig.getColor("red");
       }
       
       // Encontra os pontos originais correspondentes
@@ -150,7 +151,7 @@ export class OuterBoundaryRenderer {
     const ctx = this.ctx;
     const cellWidth = this.cellWidth;
     
-    ctx.strokeStyle = "red";
+    ctx.strokeStyle = trackColorConfig.getColor("red");
     ctx.lineWidth = 2;
     
     this.largeCells.forEach(cellInfo => {
@@ -399,7 +400,7 @@ export class OuterBoundaryRenderer {
   renderBoundaryLines(outerMostPoints) {
     const ctx = this.ctx;
 
-    ctx.strokeStyle = "gray";
+    ctx.strokeStyle = trackColorConfig.getColor("gray");
     ctx.lineWidth = 2;
     
     // Desenha as curvas de Bézier conectando os pontos finais das linhas perpendiculares

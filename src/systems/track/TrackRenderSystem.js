@@ -3,6 +3,7 @@ import { BaseTrackRenderer } from "./BaseTrackRenderer.js";
 import { InnerBoundaryRenderer } from "./InnerBoundaryRenderer.js";
 import { MiddleBoundaryRenderer } from "./MiddleBoundaryRenderer.js";
 import { OuterBoundaryRenderer } from "./OuterBoundaryRenderer.js";
+import { trackColorConfig } from "./TrackColorConfig.js";
 
 export class TrackRenderSystem {
   constructor(canvas) {
@@ -12,6 +13,9 @@ export class TrackRenderSystem {
     this.innerBoundaryRenderer = new InnerBoundaryRenderer(this.ctx, 60);
     this.middleBoundaryRenderer = new MiddleBoundaryRenderer(this.ctx, 60);
     this.outerBoundaryRenderer = new OuterBoundaryRenderer(this.ctx, 60);
+    
+    // Exposição da configuração global de cores
+    this.colorConfig = trackColorConfig;
   }
 
   update(deltaTime, entities) {
@@ -39,3 +43,6 @@ export class TrackRenderSystem {
     this.outerBoundaryRenderer.render(outerMostPoints, outerPoints);
   }
 }
+
+// Exporta a configuração global para acesso direto
+export { trackColorConfig };

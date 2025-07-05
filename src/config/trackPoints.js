@@ -23,15 +23,16 @@ function calculateDistance(point1, point2) {
 function createIntermediatePoint(point1, point2) {
   return {
     x: (point1.x + point2.x) / 2,
-    y: (point1.y + point2.y) / 2
+    y: (point1.y + point2.y) / 2,
   };
 }
 
 // Função para ajustar os pontos da pista baseado na distância máxima permitida
 export function adjustTrackPoints(points, maxDistance, selectedIndex) {
-  if (selectedIndex === undefined || selectedIndex === -1) return { points, newSelectedIndex: selectedIndex };
+  if (selectedIndex === undefined || selectedIndex === -1)
+    return { points, newSelectedIndex: selectedIndex };
 
-  let newPoints = points.map(point => ({...point}));
+  let newPoints = points.map((point) => ({ ...point }));
   const totalPoints = newPoints.length;
   let newSelectedIndex = selectedIndex;
 
@@ -43,8 +44,14 @@ export function adjustTrackPoints(points, maxDistance, selectedIndex) {
   const nextIndex = (selectedIndex + 1) % totalPoints;
 
   // Calcula as distâncias
-  const distToPrev = calculateDistance(newPoints[selectedIndex], newPoints[prevIndex]);
-  const distToNext = calculateDistance(newPoints[selectedIndex], newPoints[nextIndex]);
+  const distToPrev = calculateDistance(
+    newPoints[selectedIndex],
+    newPoints[prevIndex]
+  );
+  const distToNext = calculateDistance(
+    newPoints[selectedIndex],
+    newPoints[nextIndex]
+  );
 
   // Verifica se precisa mesclar com o ponto anterior
   if (distToPrev < trackConfig.minPointDistance && totalPoints > MIN_POINTS) {
@@ -67,7 +74,7 @@ export function adjustTrackPoints(points, maxDistance, selectedIndex) {
       newPoints[selectedIndex],
       newPoints[prevIndex]
     );
-    
+
     // Caso especial: se o ponto selecionado é 0 e estamos adicionando um ponto
     // entre ele e o último ponto, adicionamos no final do array
     if (selectedIndex === 0) {
@@ -118,55 +125,178 @@ export function updateTrackPoints() {
   );
 }
 
-// trackConfig.points = [
-//   {
-//     x: 869,
-//     y: 440,
-//   },
-//   {
-//     x: 730.6081205873071,
-//     y: 553.125,
-//   },
-//   {
-//     x: 649.625,
-//     y: 634.108120587307,
-//   },
-//   {
-//     x: 539,
-//     y: 663.75,
-//   },
-//   {
-//     x: 428.37500000000006,
-//     y: 634.1081205873071,
-//   },
-//   {
-//     x: 347.3918794126929,
-//     y: 553.125,
-//   },
-//   {
-//     x: 317.75,
-//     y: 442.5,
-//   },
-//   {
-//     x: 347.3918794126929,
-//     y: 331.87500000000006,
-//   },
-//   {
-//     x: 428.3749999999999,
-//     y: 250.89187941269302,
-//   },
-//   {
-//     x: 539,
-//     y: 221.25,
-//   },
-//   {
-//     x: 649.625,
-//     y: 250.89187941269296,
-//   },
-//   {
-//     x: 730.608120587307,
-//     y: 331.8749999999999,
-//   },
-// ];
+trackConfig.points = [
+  {
+    x: 1266,
+    y: 627,
+  },
+  {
+    x: 1243,
+    y: 708,
+  },
+  {
+    x: 1105,
+    y: 792,
+  },
+  {
+    x: 973,
+    y: 881,
+  },
+  {
+    x: 870,
+    y: 870,
+  },
+  {
+    x: 814,
+    y: 820,
+  },
+  {
+    x: 742,
+    y: 719,
+  },
+  {
+    x: 655,
+    y: 605,
+  },
+  {
+    x: 505,
+    y: 560,
+  },
+  {
+    x: 370,
+    y: 499,
+  },
+  {
+    x: 355,
+    y: 402,
+  },
+  {
+    x: 412,
+    y: 299,
+  },
+  {
+    x: 535,
+    y: 325,
+  },
+  {
+    x: 665.1249999999999,
+    y: 347.84670738912354,
+  },
+  {
+    x: 818.5,
+    y: 306.75,
+  },
+  {
+    x: 971.875,
+    y: 347.8467073891235,
+  },
+  {
+    x: 1091,
+    y: 454,
+  },
+  {
+    x: 1178.5766463054383,
+    y: 542.5625,
+  },
+];
+
+// Função global para gerar novo mapa circular via console
+function generateCircularTrack(numPoints = 12, radiusPercent = 0.25) {
+  console.log(`🏁 Gerando nova pista circular:`);
+  console.log(`   - Pontos: ${numPoints}`);
+  console.log(`   - Raio: ${radiusPercent * 100}% da tela`);
+  
+  const centerX = window.innerWidth / 2;
+  const centerY = window.innerHeight / 2;
+  const radius = Math.min(window.innerWidth, window.innerHeight) * radiusPercent;
+  
+  const newPoints = createCircularPoints(centerX, centerY, radius, numPoints);
+  
+  // Atualiza a configuração da pista
+  trackConfig.points = newPoints;
+  
+  console.log(`✅ Nova pista gerada com ${newPoints.length} pontos`);
+  console.log(`   - Centro: (${centerX}, ${centerY})`);
+  console.log(`   - Raio: ${radius}px`);
+  console.log('🎮 Pista atualizada! Redesenhe a tela para ver as mudanças.');
+  
+  return newPoints;
+}
+
+// Expõe a função globalmente no console
+window.generateCircularTrack = generateCircularTrack;
+
+// Função adicional para obter informações da pista atual
+function getTrackInfo() {
+  console.log(`📊 Informações da pista atual:`);
+  console.log(`   - Pontos: ${trackConfig.points.length}`);
+  console.log(`   - Largura: ${trackConfig.trackWidth}px`);
+  console.log(`   - Distância máxima: ${trackConfig.maxPointDistance}px`);
+  console.log(`   - Distância mínima: ${trackConfig.minPointDistance}px`);
+  console.log('📍 Pontos da pista:', trackConfig.points);
+  
+  return trackConfig;
+}
+
+// Expõe a função de informações globalmente
+window.getTrackInfo = getTrackInfo;
+
+// Função para resetar para a pista padrão
+function resetToDefaultTrack() {
+  console.log('🔄 Resetando para pista padrão...');
+  
+  trackConfig.points = createCircularPoints(
+    window.innerWidth / 2,
+    window.innerHeight / 2,
+    Math.min(window.innerWidth, window.innerHeight) * 0.25,
+    12
+  );
+  
+  console.log('✅ Pista resetada para configuração padrão');
+  console.log('🎮 Redesenhe a tela para ver as mudanças.');
+  
+  return trackConfig.points;
+}
+
+// Expõe a função de reset globalmente
+window.resetToDefaultTrack = resetToDefaultTrack;
+
+// Função de ajuda para mostrar como usar as funções
+function trackHelp() {
+  console.log(`
+🏁 === FORMULA-D TRACK GENERATOR === 🏁
+
+📋 Funções disponíveis no console:
+
+🎯 generateCircularTrack(numPoints, radiusPercent)
+   - Gera uma nova pista circular
+   - numPoints: número de pontos (padrão: 12)
+   - radiusPercent: raio como % da tela (padrão: 0.25)
+   
+   Exemplos:
+   generateCircularTrack()           // Pista padrão
+   generateCircularTrack(8)          // 8 pontos, raio padrão
+   generateCircularTrack(16, 0.3)    // 16 pontos, 30% da tela
+   generateCircularTrack(6, 0.15)    // 6 pontos, 15% da tela
+
+📊 getTrackInfo()
+   - Mostra informações da pista atual
+   
+🔄 resetToDefaultTrack()
+   - Volta para a pista padrão (12 pontos, 25% da tela)
+
+❓ trackHelp()
+   - Mostra esta ajuda novamente
+
+💡 Dica: Depois de gerar uma nova pista, atualize a tela para ver as mudanças!
+  `);
+}
+
+// Expõe a função de ajuda globalmente
+window.trackHelp = trackHelp;
+
+// Mostra a ajuda quando o arquivo é carregado
+console.log('🏁 Formula-D Track Generator carregado!');
+console.log('💡 Digite trackHelp() no console para ver as funções disponíveis.');
 
 export { trackConfig };

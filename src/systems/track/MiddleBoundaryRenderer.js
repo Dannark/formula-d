@@ -1,4 +1,5 @@
 import { TrackHelper } from "./TrackHelper.js";
+import { trackColorConfig } from "./TrackColorConfig.js";
 
 export class MiddleBoundaryRenderer {
   constructor(ctx, cellWidth) {
@@ -11,7 +12,7 @@ export class MiddleBoundaryRenderer {
     const ctx = this.ctx;
     const cellWidth = this.cellWidth;
 
-    ctx.strokeStyle = "#FFA500";
+    ctx.strokeStyle = trackColorConfig.getColor("#FFA500");
     ctx.lineWidth = 2;
 
     outerPoints.forEach((point, index) => {
@@ -73,7 +74,7 @@ export class MiddleBoundaryRenderer {
   renderBoundaryLines(outerMostPoints, outerPoints) {
     const ctx = this.ctx;
 
-    ctx.strokeStyle = "#800080"; // Roxo
+    ctx.strokeStyle = trackColorConfig.getColor("#800080"); // Roxo
     ctx.lineWidth = 2;
     
     // Desenha as curvas de Bézier conectando os pontos

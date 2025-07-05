@@ -1,5 +1,6 @@
 import { getBisectorPerpendicular, multiplyVector } from "../../utils/mathUtils.js";
 import { TrackHelper } from "./TrackHelper.js";
+import { trackColorConfig } from "./TrackColorConfig.js";
 
 export class InnerBoundaryRenderer {
   constructor(ctx, cellWidth) {
@@ -22,7 +23,7 @@ export class InnerBoundaryRenderer {
 
       // Desenha a linha perpendicular
       ctx.beginPath();
-      ctx.strokeStyle = "#00FF00";
+      ctx.strokeStyle = trackColorConfig.getColor("#00FF00");
       ctx.lineWidth = 2;
       ctx.moveTo(currentPoint.x, currentPoint.y);
       ctx.lineTo(
@@ -54,7 +55,7 @@ export class InnerBoundaryRenderer {
     const ctx = this.ctx;
 
     ctx.beginPath();
-    ctx.strokeStyle = "#000000";
+    ctx.strokeStyle = trackColorConfig.getColor("#000000");
     ctx.lineWidth = 2;
     
     // Move para o primeiro ponto externo

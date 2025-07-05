@@ -97,8 +97,8 @@ export class MainScene extends Scene {
   }
 
   load() {
-    console.log("Carregando MainScene");
-    console.log("Track config:", trackConfig);
+    // console.log("Carregando MainScene");
+    // console.log("Track config:", trackConfig);
 
     // Primeiro adiciona o sistema de render principal (que limpa o canvas)
     this.world.addSystem(new RenderSystem(this.canvas));
@@ -117,11 +117,11 @@ export class MainScene extends Scene {
     );
 
     this.world.addEntity(trackEntity);
-    console.log(
-      "Entidade da pista criada com",
-      trackConfig.points.length,
-      "pontos"
-    );
+    // console.log(
+    //   "Entidade da pista criada com",
+    //   trackConfig.points.length,
+    //   "pontos"
+    // );
 
     // Atualiza os pontos da pista quando a janela é redimensionada
     window.addEventListener("resize", () => {

@@ -35,6 +35,9 @@ export function adjustTrackPoints(points, maxDistance, selectedIndex) {
   const totalPoints = newPoints.length;
   let newSelectedIndex = selectedIndex;
 
+  // Não permitir menos de 4 pontos na pista
+  const MIN_POINTS = 4;
+
   // Calcula o índice do ponto anterior e próximo considerando o circuito fechado
   const prevIndex = (selectedIndex - 1 + totalPoints) % totalPoints;
   const nextIndex = (selectedIndex + 1) % totalPoints;
@@ -42,6 +45,21 @@ export function adjustTrackPoints(points, maxDistance, selectedIndex) {
   // Calcula as distâncias
   const distToPrev = calculateDistance(newPoints[selectedIndex], newPoints[prevIndex]);
   const distToNext = calculateDistance(newPoints[selectedIndex], newPoints[nextIndex]);
+
+  // Verifica se precisa mesclar com o ponto anterior
+  if (distToPrev < trackConfig.minPointDistance && totalPoints > MIN_POINTS) {
+    // Remove o ponto atual e mantém o anterior
+    newPoints.splice(selectedIndex, 1);
+    newSelectedIndex = prevIndex;
+    return { points: newPoints, newSelectedIndex };
+  }
+
+  // Verifica se precisa mesclar com o próximo ponto
+  if (distToNext < trackConfig.minPointDistance && totalPoints > MIN_POINTS) {
+    // Remove o próximo ponto e mantém o atual
+    newPoints.splice(nextIndex, 1);
+    return { points: newPoints, newSelectedIndex };
+  }
 
   // Verifica se precisa adicionar ponto entre o selecionado e o anterior
   if (distToPrev > maxDistance) {
@@ -87,6 +105,7 @@ const trackConfig = {
   trackWidth: 50, // largura da pista em pixels
   padding: 20, // espaço extra ao redor da pista
   maxPointDistance: 250, // distância máxima permitida entre pontos
+  minPointDistance: 50, // distância mínima permitida entre pontos
 };
 
 // Função para atualizar os pontos quando a tela for redimensionada

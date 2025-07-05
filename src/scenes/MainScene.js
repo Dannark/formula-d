@@ -5,10 +5,12 @@ import { Renderable } from "../components/Renderable.js";
 import { Velocity } from "../components/Velocity.js";
 import { Track } from "../components/Track.js";
 import { Grid } from "../components/Grid.js";
+import { Camera } from "../components/Camera.js";
 import { RenderSystem } from "../systems/RenderSystem.js";
 import { MovementSystem } from "../systems/MovementSystem.js";
 import { TrackRenderSystem } from "../systems/track/TrackRenderSystem.js";
 import { GridRenderSystem } from "../systems/GridRenderSystem.js";
+import { CameraControlSystem } from "../systems/CameraControlSystem.js";
 import { trackConfig, updateTrackPoints, adjustTrackPoints } from "../config/trackPoints.js";
 import { registerTrackEntity } from "../debug/TrackDebug.js";
 
@@ -17,33 +19,39 @@ export class MainScene extends Scene {
     super(canvas);
     this.isDragging = false;
     this.selectedPointIndex = -1;
+    this.cameraSystem = null;
   }
 
   dragPoints(trackEntity) {
     // Adiciona os event listeners para arrastar pontos
     this.canvas.addEventListener("mousedown", (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+      if (e.button === 0) { // Botão esquerdo apenas para arrastar pontos
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
 
-      // Encontra o ponto mais próximo do clique
-      let minDist = Infinity;
-      let closestPointIndex = -1;
+        // Converte para coordenadas do mundo
+        const worldCoords = this.cameraSystem ? this.cameraSystem.screenToWorld(mouseX, mouseY) : { x: mouseX, y: mouseY };
 
-      trackConfig.points.forEach((point, index) => {
-        const dx = point.x - mouseX;
-        const dy = point.y - mouseY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        // Encontra o ponto mais próximo do clique
+        let minDist = Infinity;
+        let closestPointIndex = -1;
 
-        if (dist < minDist && dist < 20) { // 20px de tolerância para selecionar
-          minDist = dist;
-          closestPointIndex = index;
+        trackConfig.points.forEach((point, index) => {
+          const dx = point.x - worldCoords.x;
+          const dy = point.y - worldCoords.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < minDist && dist < 20) { // 20px de tolerância para selecionar
+            minDist = dist;
+            closestPointIndex = index;
+          }
+        });
+
+        if (closestPointIndex !== -1) {
+          this.isDragging = true;
+          this.selectedPointIndex = closestPointIndex;
         }
-      });
-
-      if (closestPointIndex !== -1) {
-        this.isDragging = true;
-        this.selectedPointIndex = closestPointIndex;
       }
     });
 
@@ -53,13 +61,16 @@ export class MainScene extends Scene {
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
+        // Converte para coordenadas do mundo
+        const worldCoords = this.cameraSystem ? this.cameraSystem.screenToWorld(mouseX, mouseY) : { x: mouseX, y: mouseY };
+
         // Cria uma cópia do array de pontos atual
         const currentPoints = [...trackConfig.points];
 
         // Atualiza a posição do ponto
         currentPoints[this.selectedPointIndex] = {
-          x: mouseX,
-          y: mouseY
+          x: worldCoords.x,
+          y: worldCoords.y
         };
 
         // Gera o novo array de pontos e o novo índice selecionado
@@ -86,8 +97,8 @@ export class MainScene extends Scene {
       }
     });
 
-    this.canvas.addEventListener("mouseup", () => {
-      if (this.isDragging) {
+    this.canvas.addEventListener("mouseup", (e) => {
+      if (e.button === 0 && this.isDragging) {
         this.isDragging = false;
         this.selectedPointIndex = -1;
         
@@ -101,11 +112,22 @@ export class MainScene extends Scene {
     // console.log("Carregando MainScene");
     // console.log("Track config:", trackConfig);
 
-    // Primeiro adiciona o sistema de render principal (que limpa o canvas)
+    // Cria a entidade da câmera
+    const cameraEntity = new Entity()
+      .addComponent(new Transform(0, 0, 0, 0)) // Posição inicial da câmera
+      .addComponent(new Camera(1, 0.1, 3.0)); // Zoom inicial 1, min 0.1, max 3.0
+
+    this.world.addEntity(cameraEntity);
+
+    // Adiciona os sistemas na ordem correta
+    // 1. Sistema de controle da câmera (primeiro para aplicar transformação global)
+    this.cameraSystem = new CameraControlSystem(this.canvas);
+    this.world.addSystem(this.cameraSystem);
+    // 2. Sistema de render principal (que limpa o canvas)
     this.world.addSystem(new RenderSystem(this.canvas));
-    // Adiciona o sistema de render da grid
+    // 3. Sistema de render da grid
     this.world.addSystem(new GridRenderSystem(this.canvas));
-    // Depois adiciona o sistema de render da pista
+    // 4. Sistema de render da pista
     this.world.addSystem(new TrackRenderSystem(this.canvas));
 
     // Cria a entidade da grid

@@ -47,10 +47,38 @@ Este sistema é completamente opcional. Para remover:
 
 O jogo continuará funcionando normalmente sem o sistema de debug.
 
+## 🌿 Geração Procedural
+
+O sistema agora inclui geração procedural avançada com:
+
+### Tipos de Pista Disponíveis
+- **🌿 Orgânica**: Circular com perturbações naturais usando Perlin Noise
+- **🏁 Oval**: Formato elíptico com variações orgânicas  
+- **∞ Figura-8**: Formato infinito com curvas suaves
+- **🏎️ Complexa**: Múltiplas seções com características diferentes
+- **🎲 Randomizada**: Tipo e parâmetros completamente aleatórios
+
+### Funções Adicionais
+```javascript
+generateOrganicTrack()                    // Pista orgânica
+generateOvalTrack()                       // Pista oval
+generateFigureEightTrack()                // Pista figura-8
+generateComplexTrack()                    // Pista complexa
+generateRandomTrack()                     // Totalmente aleatória
+```
+
+### Características Avançadas
+- ✅ **Detecção automática de cruzamentos**
+- ✅ **Regeneração automática** até encontrar pista válida
+- ✅ **Perlin Noise** para variações orgânicas
+- ✅ **Múltiplas octavas** para complexidade
+- ✅ **Parâmetros configuráveis** (amplitude, escala, pontos)
+
 ## 🚀 Próximos passos
 
-Este sistema pode ser expandido para:
-- Algoritmos de geração procedural (Perlin Noise)
-- Diferentes tipos de pista (ovais, em forma de 8, etc.)
-- Salvamento/carregamento de pistas
-- Editor visual de pistas 
+- ✅ ~~Algoritmos de geração procedural (Perlin Noise)~~ **IMPLEMENTADO**
+- ✅ ~~Diferentes tipos de pista (ovais, em forma de 8, etc.)~~ **IMPLEMENTADO**  
+- 🔄 Salvamento/carregamento de pistas
+- 🔄 Editor visual de pistas
+- 🔄 Templates de pistas famosas
+- 🔄 Pistas com múltiplos loops 

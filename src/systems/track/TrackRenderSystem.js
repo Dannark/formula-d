@@ -1,15 +1,16 @@
 import { Track } from "../../components/Track.js";
-import { calculateDirection, getBisectorPerpendicular, multiplyVector } from "../../utils/mathUtils.js";
 import { OuterBoundaryRenderer } from "./OuterBoundaryRenderer.js";
 import { MiddleBoundaryRenderer } from "./MiddleBoundaryRenderer.js";
+import { InnerBoundaryRenderer } from "./InnerBoundaryRenderer.js";
 import { TrackHelper } from "./TrackHelper.js";
 
 export class TrackRenderSystem {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
-    this.outerBoundaryRenderer = new OuterBoundaryRenderer(this.ctx, 60);
+    this.innerBoundaryRenderer = new InnerBoundaryRenderer(this.ctx, 60);
     this.middleBoundaryRenderer = new MiddleBoundaryRenderer(this.ctx, 60);
+    this.outerBoundaryRenderer = new OuterBoundaryRenderer(this.ctx, 60);
   }
 
   update(deltaTime, entities) {
@@ -21,27 +22,30 @@ export class TrackRenderSystem {
     }
   }
 
-  // calculateDirection(point1, point2) {
-  //   const direction = {
-  //     x: point2.x - point1.x,
-  //     y: point2.y - point1.y
-  //   };
-  //   direction.length = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
-  //   return direction;
-  // }
-
-
-
-
-
-
-
   renderTrack(track) {
     const ctx = this.ctx;
     const points = track.points;
-    const cellWidth = 60;
 
-    // Primeiro vamos desenhar a linha central (azul)
+    // Desenha a linha central azul
+    this.renderCentralLine(points);
+
+    // Desenha os pontos vermelhos com números
+    this.renderTrackPoints(points);
+
+    // Desenha a primeira faixa (linhas verdes + curva preta)
+    const outerPoints = this.innerBoundaryRenderer.render(points);
+
+    // Desenha a segunda faixa (linhas laranjas + curvas roxas)
+    const outerMostPoints = this.middleBoundaryRenderer.render(outerPoints);
+
+    // Desenha a terceira faixa (linhas vermelhas + curvas cinzas)
+    this.outerBoundaryRenderer.render(outerMostPoints, outerPoints);
+  }
+
+  // Desenha a linha central azul
+  renderCentralLine(points) {
+    const ctx = this.ctx;
+
     ctx.beginPath();
     ctx.strokeStyle = "#0000FF";
     ctx.lineWidth = 2;
@@ -57,7 +61,6 @@ export class TrackRenderSystem {
       
       const controlPoints = TrackHelper.calculateControlPoints(point, nextPoint, prevPoint, nextNextPoint);
       
-      // Usa bezierCurveTo para criar uma curva suave
       ctx.bezierCurveTo(
         controlPoints.cp1.x,
         controlPoints.cp1.y,
@@ -68,8 +71,12 @@ export class TrackRenderSystem {
       );
     });
     ctx.stroke();
+  }
 
-    // Agora desenha os pontos vermelhos em um loop separado
+  // Desenha os pontos vermelhos com números
+  renderTrackPoints(points) {
+    const ctx = this.ctx;
+
     points.forEach((point, index) => {
       ctx.fillStyle = "#FF0000";
       ctx.beginPath();
@@ -83,72 +90,5 @@ export class TrackRenderSystem {
       ctx.textBaseline = "middle";
       ctx.fillText(index.toString(), point.x, point.y);
     });
-
-    // Agora vamos desenhar as linhas verdes (perpendiculares)
-    points.forEach((currentPoint, index) => {
-      const prevPoint = points[(index - 1 + points.length) % points.length];
-      const nextPoint = points[(index + 1) % points.length];
-      
-      // Calcula o vetor perpendicular baseado na bissetriz
-      const perpendicular = getBisectorPerpendicular(currentPoint, prevPoint, nextPoint);
-      const scaledPerpendicular = multiplyVector(perpendicular, cellWidth);
-
-      // Desenha a linha verde
-      ctx.beginPath();
-      ctx.strokeStyle = "#00FF00";
-      ctx.lineWidth = 2;
-      ctx.moveTo(currentPoint.x, currentPoint.y);
-      ctx.lineTo(
-        currentPoint.x + scaledPerpendicular.x,
-        currentPoint.y + scaledPerpendicular.y
-      );
-      ctx.stroke();
-    });
-
-    // Desenha a linha preta conectando os pontos finais das linhas verdes com curvas Bézier
-    ctx.beginPath();
-    ctx.strokeStyle = "#000000";
-    ctx.lineWidth = 2;
-    
-    // Calcula os pontos externos (finais das linhas verdes)
-    const outerPoints = points.map((currentPoint, index) => {
-      const prevPoint = points[(index - 1 + points.length) % points.length];
-      const nextPoint = points[(index + 1) % points.length];
-      const perpendicular = getBisectorPerpendicular(currentPoint, prevPoint, nextPoint);
-      const scaledPerpendicular = multiplyVector(perpendicular, cellWidth);
-      return {
-        x: currentPoint.x + scaledPerpendicular.x,
-        y: currentPoint.y + scaledPerpendicular.y
-      };
-    });
-
-    // Move para o primeiro ponto externo
-    ctx.moveTo(outerPoints[0].x, outerPoints[0].y);
-    
-    // Desenha as curvas de Bézier entre os pontos externos
-    outerPoints.forEach((point, index) => {
-      const prevPoint = outerPoints[(index - 1 + outerPoints.length) % outerPoints.length];
-      const nextPoint = outerPoints[(index + 1) % outerPoints.length];
-      const nextNextPoint = outerPoints[(index + 2) % outerPoints.length];
-      
-      const controlPoints = TrackHelper.calculateControlPoints(point, nextPoint, prevPoint, nextNextPoint);
-      
-      ctx.bezierCurveTo(
-        controlPoints.cp1.x,
-        controlPoints.cp1.y,
-        controlPoints.cp2.x,
-        controlPoints.cp2.y,
-        nextPoint.x,
-        nextPoint.y
-      );
-    });
-    
-    ctx.stroke();
-
-    // Desenha a segunda faixa (linhas laranjas e curvas roxas) usando o renderer dedicado
-    const outerMostPoints = this.middleBoundaryRenderer.render(outerPoints);
-
-    // Desenha a terceira faixa (linhas vermelhas e cinzas) usando o renderer dedicado
-    this.outerBoundaryRenderer.render(outerMostPoints, outerPoints);
   }
 }

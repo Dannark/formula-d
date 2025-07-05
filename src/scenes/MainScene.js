@@ -7,7 +7,7 @@ import { Track } from "../components/Track.js";
 import { Grid } from "../components/Grid.js";
 import { RenderSystem } from "../systems/RenderSystem.js";
 import { MovementSystem } from "../systems/MovementSystem.js";
-import { TrackRenderSystem } from "../systems/TrackRenderSystem.js";
+import { TrackRenderSystem } from "../systems/track/TrackRenderSystem.js";
 import { GridRenderSystem } from "../systems/GridRenderSystem.js";
 import { trackConfig, updateTrackPoints, adjustTrackPoints } from "../config/trackPoints.js";
 

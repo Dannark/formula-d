@@ -2,6 +2,27 @@ export class DirectionalGenerator {
   constructor(seed = Math.random()) {
     this.seed = seed;
     this.random = this.createSeededRandom(seed);
+    
+    // Configurações da pista
+    this.TRACK_WIDTH = 200; // 60px x 3 células
+    this.TRACK_HALF_WIDTH = this.TRACK_WIDTH / 2;
+    
+    // Direções iniciais possíveis (8 direções)
+    this.INITIAL_DIRECTIONS = [
+      0,                    // Direita
+      Math.PI / 4,         // Diagonal superior direita
+      Math.PI / 2,         // Cima
+      3 * Math.PI / 4,     // Diagonal superior esquerda
+      Math.PI,             // Esquerda
+      5 * Math.PI / 4,     // Diagonal inferior esquerda
+      3 * Math.PI / 2,     // Baixo
+      7 * Math.PI / 4      // Diagonal inferior direita
+    ];
+    
+    // Opções de movimento (relativas à direção atual)
+    this.TURN_LEFT = -Math.PI / 4;   // -45 graus
+    this.GO_STRAIGHT = 0;            // 0 graus
+    this.TURN_RIGHT = Math.PI / 4;   // +45 graus
   }
   
   // Gerador de números aleatórios com seed
@@ -27,32 +48,6 @@ export class DirectionalGenerator {
     return Math.sqrt(dx * dx + dy * dy);
   }
   
-  // Verifica se uma linha cruza com outras linhas existentes
-  crossesExistingPath(newPoint, currentPath, minDistance = 30) {
-    if (currentPath.length < 3) return false;
-    
-    const lastPoint = currentPath[currentPath.length - 1];
-    
-    // Verifica distância mínima com pontos anteriores (exceto os últimos 2)
-    for (let i = 0; i < currentPath.length - 2; i++) {
-      if (this.distance(newPoint, currentPath[i]) < minDistance) {
-        return true;
-      }
-    }
-    
-    // Verifica intersecção de linhas (exceto com as últimas 2 linhas)
-    for (let i = 0; i < currentPath.length - 3; i++) {
-      const p1 = currentPath[i];
-      const p2 = currentPath[i + 1];
-      
-      if (this.linesIntersect(lastPoint, newPoint, p1, p2)) {
-        return true;
-      }
-    }
-    
-    return false;
-  }
-  
   // Verifica se duas linhas se intersectam
   linesIntersect(p1, p2, p3, p4) {
     const d1 = this.direction(p3, p4, p1);
@@ -73,195 +68,394 @@ export class DirectionalGenerator {
     return (pk.x - pi.x) * (pj.y - pi.y) - (pj.x - pi.x) * (pk.y - pi.y);
   }
   
-  // Calcula o ângulo para retornar ao ponto inicial
-  getAngleToStart(currentPoint, startPoint, currentAngle) {
-    const dx = startPoint.x - currentPoint.x;
-    const dy = startPoint.y - currentPoint.y;
-    const targetAngle = Math.atan2(dy, dx);
+  // Verifica se um ponto está muito próximo do caminho existente (considerando largura da pista)
+  wouldCauseCollision(newPoint, existingPath, currentPoint, minDistance = null) {
+    const safeDistance = minDistance || this.TRACK_WIDTH;
     
-    // Calcula a diferença angular mais curta
-    let diff = targetAngle - currentAngle;
-    if (diff > Math.PI) diff -= 2 * Math.PI;
-    if (diff < -Math.PI) diff += 2 * Math.PI;
+    // Não verifica colisão com os últimos 3 pontos (conexão direta)
+    const pathToCheck = existingPath.slice(0, -3);
     
-    return diff;
-  }
-  
-  // Verifica se pode fechar o circuito conectando ao ponto inicial
-  canCloseCircuit(currentPoint, startPoint, path, maxDistance = 80) {
-    const distToStart = this.distance(currentPoint, startPoint);
+    // Verifica distância com pontos anteriores
+    for (let i = 0; i < pathToCheck.length; i++) {
+      const existingPoint = pathToCheck[i];
+      const dist = this.distance(newPoint, existingPoint);
+      
+      if (dist < safeDistance) {
+        console.log(`❌ Colisão por proximidade: ${Math.round(dist)}px < ${safeDistance}px`);
+        return true;
+      }
+    }
     
-    // Se está próximo o suficiente e não cruza outras linhas
-    if (distToStart <= maxDistance) {
-      // Verifica se a linha de fechamento não cruza o path existente
-      for (let i = 1; i < path.length - 2; i++) {
-        const p1 = path[i];
-        const p2 = path[i + 1];
+    // Verifica intersecção de linhas
+    if (currentPoint && pathToCheck.length > 1) {
+      for (let i = 0; i < pathToCheck.length - 1; i++) {
+        const lineStart = pathToCheck[i];
+        const lineEnd = pathToCheck[i + 1];
         
-        if (this.linesIntersect(currentPoint, startPoint, p1, p2)) {
-          return false;
+        if (this.linesIntersect(currentPoint, newPoint, lineStart, lineEnd)) {
+          console.log(`❌ Colisão por intersecção de linha`);
+          return true;
         }
       }
+    }
+    
+    return false;
+  }
+  
+  // Verifica se uma sequência de movimentos criaria um loop fechado
+  wouldCreateTightLoop(path, consecutiveTurns, direction) {
+    if (consecutiveTurns < 5) return false; // Precisa de pelo menos 5 curvas seguidas
+    
+    // Se estiver fazendo muitas curvas na mesma direção, pode criar um loop
+    if (consecutiveTurns >= 6) { // Reduzi de 7 para 6
+      console.log(`❌ Loop detectado: ${consecutiveTurns} curvas ${direction} consecutivas`);
       return true;
     }
     
     return false;
   }
   
-  // Gera uma pista usando navegação direcional
-  generateDirectionalTrack(options = {}) {
-    const {
-      centerX = window.innerWidth / 2,
-      centerY = window.innerHeight / 2,
-      stepSize = 40,
-      maxSteps = 50,
-      turnAngle = Math.PI / 4, // 45 graus
-      returnPhaseRatio = 0.6, // Após 60% dos passos, tenta retornar
-      minCircuitDistance = 60,
-      clockwise = true, // NOVO: direção horária por padrão
-      maxDistanceFromCenter = 1.7 // NOVO: máximo 70% da tela do centro
-    } = options;
+  // Calcula o próximo ponto baseado na posição atual, direção e distância
+  calculateNextPoint(currentPoint, direction, stepSize) {
+    return {
+      x: currentPoint.x + Math.cos(direction) * stepSize,
+      y: currentPoint.y + Math.sin(direction) * stepSize
+    };
+  }
+  
+  // Verifica se pode fechar o circuito de forma limpa
+  canCloseCircuit(currentPoint, startPoint, path, stepSize) {
+    const distanceToStart = this.distance(currentPoint, startPoint);
+    const maxCloseDistance = stepSize * 1.5; // Mais rigoroso
     
-    console.log('🎯 Gerando pista direcional...');
-    console.log(`   - Passos máximos: ${maxSteps}`);
-    console.log(`   - Tamanho do passo: ${stepSize}px`);
-    console.log(`   - Ângulo de curva: ${Math.round(turnAngle * 180 / Math.PI)}°`);
-    console.log(`   - Direção: ${clockwise ? 'Horária' : 'Anti-horária'}`);
+    if (distanceToStart > maxCloseDistance) {
+      return false;
+    }
     
-    const path = [];
-    let currentAngle = 0; // Começa indo para a direita
+    // Verifica se a linha de fechamento não cruza o path existente
+    // Ignora os últimos 5 pontos para evitar verificação desnecessária
+    const pathToCheck = path.slice(0, -5);
     
-    // Multiplicador para direção (horária = -1, anti-horária = +1)
-    const directionMultiplier = clockwise ? -1 : 1;
-    
-    // Ponto inicial
-    const startPoint = { x: centerX, y: centerY };
-    path.push(startPoint);
-    
-    let currentPoint = { ...startPoint };
-    const returnPhaseStep = Math.floor(maxSteps * returnPhaseRatio);
-    
-    for (let step = 1; step < maxSteps; step++) {
-      const isReturnPhase = step > returnPhaseStep;
+    for (let i = 0; i < pathToCheck.length - 1; i++) {
+      const lineStart = pathToCheck[i];
+      const lineEnd = pathToCheck[i + 1];
       
-      // Define as opções de movimento
-      // Para direção horária, invertemos a lógica das curvas
-      const leftTurn = clockwise ? currentAngle + turnAngle : currentAngle - turnAngle;
-      const rightTurn = clockwise ? currentAngle - turnAngle : currentAngle + turnAngle;
-      
-      const options = [
-        { angle: currentAngle, weight: 3 }, // Continuar reto (maior peso)
-        { angle: leftTurn, weight: 1 }, // Virar à esquerda
-        { angle: rightTurn, weight: 1 }  // Virar à direita
+      if (this.linesIntersect(currentPoint, startPoint, lineStart, lineEnd)) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+  
+  // Gera a fase de exploração (saída)
+  generateExplorationPhase(startPoint, initialDirection, stepSize, explorationSteps, straightStartSteps = 3) {
+    console.log(`🚀 Iniciando fase de exploração (${explorationSteps} passos, ${straightStartSteps} retos iniciais)`);
+    
+    const path = [startPoint];
+    let currentDirection = initialDirection;
+    let currentPoint = startPoint;
+    
+    // Primeiros passos sempre retos (área de largada)
+    for (let straightStep = 1; straightStep <= straightStartSteps; straightStep++) {
+      const nextPoint = this.calculateNextPoint(currentPoint, currentDirection, stepSize);
+      path.push(nextPoint);
+      currentPoint = nextPoint;
+      console.log(`   Passo ${straightStep}: straight (largada) - ${path.length} pontos total`);
+    }
+    
+    // Contador de curvas consecutivas na mesma direção
+    let consecutiveLeftTurns = 0;
+    let consecutiveRightTurns = 0;
+    
+    // Restante dos passos de exploração (após os passos retos iniciais)
+    for (let step = straightStartSteps + 1; step <= explorationSteps; step++) {
+      const moveOptions = [
+        { direction: currentDirection + this.TURN_LEFT, type: 'left', weight: 1 },
+        { direction: currentDirection + this.GO_STRAIGHT, type: 'straight', weight: 3 },
+        { direction: currentDirection + this.TURN_RIGHT, type: 'right', weight: 1 }
       ];
       
-      // Na fase de retorno, aumenta o peso da direção que leva ao início
-      if (isReturnPhase) {
-        const angleToStart = this.getAngleToStart(currentPoint, startPoint, currentAngle);
-        
-        if (Math.abs(angleToStart) < turnAngle * 0.7) {
-          // Se já está apontando aproximadamente para o início, aumenta peso de seguir reto
-          options[0].weight = 5;
-        } else if (angleToStart < 0) {
-          // Precisa virar à esquerda para voltar ao início
-          options[1].weight = 4;
-        } else {
-          // Precisa virar à direita para voltar ao início
-          options[2].weight = 4;
-        }
+      // Normaliza as direções
+      moveOptions.forEach(option => {
+        option.direction = this.normalizeAngle(option.direction);
+      });
+      
+      // Ajusta pesos baseado em curvas consecutivas
+      if (consecutiveLeftTurns >= 3) {
+        moveOptions[0].weight = 0.5; // Reduz peso de virar à esquerda
+        moveOptions[2].weight = 2;   // Aumenta peso de virar à direita
+      }
+      if (consecutiveRightTurns >= 3) {
+        moveOptions[2].weight = 0.5; // Reduz peso de virar à direita
+        moveOptions[0].weight = 2;   // Aumenta peso de virar à esquerda
       }
       
-      // Seleciona uma direção baseada nos pesos
+      // Seleciona uma opção válida
       let selectedOption = null;
       let attempts = 0;
-      const maxAttempts = 10;
       
-      while (selectedOption === null && attempts < maxAttempts) {
-        const totalWeight = options.reduce((sum, opt) => sum + opt.weight, 0);
+      while (selectedOption === null && attempts < 15) {
+        // Seleciona baseado no peso
+        const totalWeight = moveOptions.reduce((sum, opt) => sum + opt.weight, 0);
         let randomValue = this.random() * totalWeight;
         
-        for (const option of options) {
+        for (const option of moveOptions) {
           randomValue -= option.weight;
           if (randomValue <= 0) {
-            const testAngle = this.normalizeAngle(option.angle);
-            const testPoint = {
-              x: currentPoint.x + Math.cos(testAngle) * stepSize,
-              y: currentPoint.y + Math.sin(testAngle) * stepSize * directionMultiplier
-            };
+            const testPoint = this.calculateNextPoint(currentPoint, option.direction, stepSize);
             
             // Verifica se o movimento é válido
-            if (!this.crossesExistingPath(testPoint, path, 25)) {
-              selectedOption = { angle: testAngle, point: testPoint };
+            const wouldLoop = this.wouldCreateTightLoop(path, 
+              option.type === 'left' ? consecutiveLeftTurns + 1 : consecutiveRightTurns + 1, 
+              option.type
+            );
+            
+            if (!this.wouldCauseCollision(testPoint, path, currentPoint) && !wouldLoop) {
+              selectedOption = {
+                direction: option.direction,
+                point: testPoint,
+                type: option.type
+              };
               break;
             }
           }
         }
         
         attempts++;
-        
-        // Se não encontrou opção válida, reduz os pesos das opções de curva
         if (selectedOption === null) {
-          options[1].weight = Math.max(0.5, options[1].weight * 0.7);
-          options[2].weight = Math.max(0.5, options[2].weight * 0.7);
-          options[0].weight += 1; // Aumenta a tendência de ir reto
+          // Aumenta peso de ir reto se não encontrou opção válida
+          moveOptions[1].weight += 1;
+          moveOptions[0].weight = Math.max(0.1, moveOptions[0].weight * 0.7);
+          moveOptions[2].weight = Math.max(0.1, moveOptions[2].weight * 0.7);
         }
       }
       
-      // Se ainda não encontrou uma opção válida, força ir reto
+      // Se ainda não encontrou, força ir reto com passo menor
       if (selectedOption === null) {
-        const testAngle = this.normalizeAngle(currentAngle);
+        console.log(`⚠️ Forçando movimento reto com passo reduzido`);
         selectedOption = {
-          angle: testAngle,
-          point: {
-            x: currentPoint.x + Math.cos(testAngle) * stepSize * 0.5,
-            y: currentPoint.y + Math.sin(testAngle) * stepSize * 0.5 * directionMultiplier
-          }
+          direction: this.normalizeAngle(currentDirection),
+          point: this.calculateNextPoint(currentPoint, currentDirection, stepSize * 0.7),
+          type: 'straight'
         };
       }
       
-      // Verifica se pode fechar o circuito
-      if (step > 8 && this.canCloseCircuit(selectedOption.point, startPoint, path, minCircuitDistance)) {
-        console.log(`✅ Circuito fechado após ${step} passos`);
-        break;
+      // Atualiza contadores de curvas consecutivas
+      if (selectedOption.type === 'left') {
+        consecutiveLeftTurns++;
+        consecutiveRightTurns = 0;
+      } else if (selectedOption.type === 'right') {
+        consecutiveRightTurns++;
+        consecutiveLeftTurns = 0;
+      } else {
+        consecutiveLeftTurns = 0;
+        consecutiveRightTurns = 0;
       }
       
       // Aplica o movimento
-      currentAngle = selectedOption.angle;
+      currentDirection = selectedOption.direction;
       currentPoint = selectedOption.point;
       path.push(currentPoint);
       
-      // Verifica se está se afastando muito do centro (failsafe)
-      const distanceFromCenter = this.distance(currentPoint, startPoint);
-      const maxDistance = Math.min(window.innerWidth, window.innerHeight) * maxDistanceFromCenter;
-      
-      if (distanceFromCenter > maxDistance) {
-        console.log(`⚠️ Muito longe do centro (${Math.round(distanceFromCenter)}px / ${Math.round(maxDistance)}px), forçando retorno`);
-        // Força retorno ao centro
-        const angleToCenter = Math.atan2(startPoint.y - currentPoint.y, startPoint.x - currentPoint.x);
-        currentAngle = angleToCenter;
-      }
+      console.log(`   Passo ${step}: ${selectedOption.type} (${path.length} pontos total)`);
     }
     
-    console.log(`📊 Pista gerada com ${path.length} pontos`);
+    return { path, finalDirection: currentDirection };
+  }
+  
+  // Gera a fase de retorno (sempre clockwise)
+  generateReturnPhase(explorationPath, finalDirection, stepSize, startPoint) {
+    console.log(`🔄 Iniciando fase de retorno (clockwise)`);
+    
+    const path = [...explorationPath];
+    let currentDirection = finalDirection;
+    let currentPoint = path[path.length - 1];
+    
+    const maxReturnSteps = 100; // Aumentei o limite
+    let returnSteps = 0;
+    let stuckCounter = 0; // Contador para detectar quando está preso
+    
+    while (returnSteps < maxReturnSteps) {
+      // Verifica se pode fechar o circuito
+      if (returnSteps > 5 && this.canCloseCircuit(currentPoint, startPoint, path, stepSize)) {
+        console.log(`✅ Circuito fechado após ${returnSteps} passos de retorno`);
+        break;
+      }
+      
+      // Calcula ângulo para o ponto inicial
+      const dx = startPoint.x - currentPoint.x;
+      const dy = startPoint.y - currentPoint.y;
+      const angleToStart = Math.atan2(dy, dx);
+      const distanceToStart = this.distance(currentPoint, startPoint);
+      
+      // Opções de movimento priorizando sentido horário (clockwise)
+      const moveOptions = [
+        { direction: currentDirection + this.TURN_RIGHT, type: 'right', weight: 3 }, // Prioriza direita
+        { direction: currentDirection + this.GO_STRAIGHT, type: 'straight', weight: 2 },
+        { direction: currentDirection + this.TURN_LEFT, type: 'left', weight: 1 }
+      ];
+      
+      // Normaliza as direções
+      moveOptions.forEach(option => {
+        option.direction = this.normalizeAngle(option.direction);
+      });
+      
+      // Ajusta pesos baseado na direção ao início
+      let angleDiff = angleToStart - currentDirection;
+      if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+      if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+      
+      // Se está se aproximando do ponto inicial, prioriza a direção correta
+      if (distanceToStart < stepSize * 4) {
+        if (Math.abs(angleDiff) < Math.PI / 4) {
+          moveOptions[1].weight = 5; // Prioriza ir reto
+        } else if (angleDiff > 0) {
+          moveOptions[0].weight = 4; // Prioriza direita
+        } else {
+          moveOptions[2].weight = 4; // Prioriza esquerda
+        }
+      } else {
+        // Se está longe, prioriza virar à direita (clockwise)
+        if (angleDiff > 0) {
+          moveOptions[0].weight = 4; // Aumenta peso de virar à direita
+        }
+      }
+      
+      // Seleciona uma opção válida
+      let selectedOption = null;
+      let attempts = 0;
+      
+      while (selectedOption === null && attempts < 15) {
+        const totalWeight = moveOptions.reduce((sum, opt) => sum + opt.weight, 0);
+        let randomValue = this.random() * totalWeight;
+        
+        for (const option of moveOptions) {
+          randomValue -= option.weight;
+          if (randomValue <= 0) {
+            const testPoint = this.calculateNextPoint(currentPoint, option.direction, stepSize);
+            
+            if (!this.wouldCauseCollision(testPoint, path, currentPoint)) {
+              selectedOption = {
+                direction: option.direction,
+                point: testPoint,
+                type: option.type
+              };
+              break;
+            }
+          }
+        }
+        
+        attempts++;
+        if (selectedOption === null) {
+          moveOptions[1].weight += 1; // Aumenta peso de ir reto
+          moveOptions[0].weight = Math.max(0.1, moveOptions[0].weight * 0.8);
+          moveOptions[2].weight = Math.max(0.1, moveOptions[2].weight * 0.8);
+        }
+      }
+      
+      // Se ainda não encontrou, força ir reto com passo menor
+      if (selectedOption === null) {
+        console.log(`⚠️ Forçando movimento reto na volta com passo reduzido`);
+        selectedOption = {
+          direction: this.normalizeAngle(currentDirection),
+          point: this.calculateNextPoint(currentPoint, currentDirection, stepSize * 0.7),
+          type: 'straight'
+        };
+        stuckCounter++;
+      } else {
+        stuckCounter = 0;
+      }
+      
+      // Se está preso por muito tempo, tenta uma direção aleatória
+      if (stuckCounter > 5) {
+        console.log(`⚠️ Preso por muito tempo, tentando direção aleatória`);
+        const randomDirection = this.normalizeAngle(currentDirection + (this.random() - 0.5) * Math.PI);
+        selectedOption = {
+          direction: randomDirection,
+          point: this.calculateNextPoint(currentPoint, randomDirection, stepSize * 0.5),
+          type: 'random'
+        };
+        stuckCounter = 0;
+      }
+      
+      // Aplica o movimento
+      currentDirection = selectedOption.direction;
+      currentPoint = selectedOption.point;
+      path.push(currentPoint);
+      
+      returnSteps++;
+      console.log(`   Retorno ${returnSteps}: ${selectedOption.type} (distância ao início: ${Math.round(distanceToStart)}px)`);
+    }
+    
+    if (returnSteps >= maxReturnSteps) {
+      console.log(`⚠️ Atingiu limite máximo de ${maxReturnSteps} passos de retorno`);
+    }
+    
     return path;
   }
   
-  // Gera uma pista com múltiplas tentativas para garantir qualidade
-  generateSafeDirectionalTrack(options = {}, maxAttempts = 5) {
+  // Gera uma pista completa
+  generateDirectionalTrack(options = {}) {
+    const {
+      centerX = window.innerWidth / 2,
+      centerY = window.innerHeight / 2,
+      stepSize = 100, // Tamanho do passo (distância entre pontos)
+      explorationSteps = 10, // Número de passos de exploração
+      straightStartSteps = 4, // Número de passos retos iniciais (área de largada)
+      initialDirection = null // Direção inicial (null = aleatória)
+    } = options;
+    
+    console.log('🎯 Gerando pista direcional avançada...');
+    console.log(`   - Centro: (${centerX}, ${centerY})`);
+    console.log(`   - Tamanho do passo: ${stepSize}px`);
+    console.log(`   - Passos de exploração: ${explorationSteps}`);
+    console.log(`   - Passos retos iniciais: ${straightStartSteps}`);
+    console.log(`   - Largura da pista: ${this.TRACK_WIDTH}px`);
+    
+    // Ponto inicial
+    const startPoint = { x: centerX, y: centerY };
+    
+    // Seleciona direção inicial
+    const selectedDirection = initialDirection !== null ? 
+      initialDirection : 
+      this.INITIAL_DIRECTIONS[Math.floor(this.random() * this.INITIAL_DIRECTIONS.length)];
+    
+    console.log(`   - Direção inicial: ${Math.round(selectedDirection * 180 / Math.PI)}°`);
+    
+    // Fase de exploração
+    const explorationResult = this.generateExplorationPhase(
+      startPoint, 
+      selectedDirection, 
+      stepSize, 
+      explorationSteps,
+      straightStartSteps
+    );
+    
+    // Fase de retorno
+    const completePath = this.generateReturnPhase(
+      explorationResult.path,
+      explorationResult.finalDirection,
+      stepSize,
+      startPoint
+    );
+    
+    console.log(`📊 Pista completa gerada com ${completePath.length} pontos`);
+    console.log(`   - Exploração: ${explorationResult.path.length} pontos`);
+    console.log(`   - Retorno: ${completePath.length - explorationResult.path.length} pontos`);
+    
+    return completePath;
+  }
+  
+  // Gera uma pista com múltiplas tentativas
+  generateSafeDirectionalTrack(options = {}, maxAttempts = 3) {
     let bestTrack = null;
     let bestScore = 0;
     
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       console.log(`🔄 Tentativa ${attempt}/${maxAttempts}`);
       
-      const track = this.generateDirectionalTrack({
-        ...options,
-        // Varia ligeiramente os parâmetros a cada tentativa
-        stepSize: (options.stepSize || 40) + (this.random() - 0.5) * 10,
-        turnAngle: (options.turnAngle || Math.PI / 4) + (this.random() - 0.5) * 0.3
-      });
-      
-      // Calcula uma pontuação para a pista
+      const track = this.generateDirectionalTrack(options);
       const score = this.scoreTrack(track);
       
       if (score > bestScore) {
@@ -274,23 +468,31 @@ export class DirectionalGenerator {
     return bestTrack;
   }
   
-  // Calcula uma pontuação para avaliar a qualidade da pista
+  // Calcula pontuação da pista
   scoreTrack(track) {
-    if (!track || track.length < 3) return 0;
+    if (!track || track.length < 5) return 0;
     
-    let score = 0;
+    let score = 100; // Pontuação base
     
-    // Pontuação base por ter uma pista válida
-    score += 100;
+    // Pontuação pelo tamanho da pista
+    score += Math.min(track.length * 2, 100);
     
-    // Pontuação pelo número de pontos (mais pontos = melhor, mas com limite)
-    score += Math.min(track.length * 3, 150); // Máximo 50 pontos extras
+    // Pontuação pelo fechamento do circuito
+    const startPoint = track[0];
+    const endPoint = track[track.length - 1];
+    const closingDistance = this.distance(startPoint, endPoint);
     
-    // Pontuação pela variação na pista (evita pistas muito retas)
-    let totalAngleChange = 0;
-    let validAngles = 0;
+    if (closingDistance < 120) {
+      score += 150; // Bônus por fechar bem
+    } else if (closingDistance < 200) {
+      score += 75;
+    } else {
+      score -= closingDistance * 0.5; // Penalidade por não fechar bem
+    }
     
-    for (let i = 2; i < track.length; i++) {
+    // Pontuação pela variação (evita pistas muito retas)
+    let totalVariation = 0;
+    for (let i = 2; i < track.length - 1; i++) {
       const v1 = {
         x: track[i-1].x - track[i-2].x,
         y: track[i-1].y - track[i-2].y
@@ -300,40 +502,18 @@ export class DirectionalGenerator {
         y: track[i].y - track[i-1].y
       };
       
-      // Verifica se os vetores são válidos (não zero)
       const len1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
       const len2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
       
-      if (len1 > 0.1 && len2 > 0.1) {
-        const angle1 = Math.atan2(v1.y, v1.x);
-        const angle2 = Math.atan2(v2.y, v2.x);
-        let angleDiff = Math.abs(angle2 - angle1);
-        if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
-        
-        totalAngleChange += angleDiff;
-        validAngles++;
+      if (len1 > 0 && len2 > 0) {
+        const dot = (v1.x * v2.x + v1.y * v2.y) / (len1 * len2);
+        const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+        totalVariation += angle;
       }
     }
     
-    if (validAngles > 0) {
-      const avgAngleChange = totalAngleChange / validAngles;
-      score += Math.min(avgAngleChange * 50, 100); // Recompensa variação moderada, máximo 100 pontos
-    }
+    score += Math.min(totalVariation * 20, 100);
     
-    // Avalia o fechamento da pista (menos rigoroso)
-    const startPoint = track[0];
-    const endPoint = track[track.length - 1];
-    const closingDistance = this.distance(startPoint, endPoint);
-    
-    if (closingDistance < 120) {
-      score += 100; // Bônus generoso por fechar razoavelmente bem
-    } else if (closingDistance < 200) {
-      score += 50; // Bônus menor mas ainda positivo
-    } else {
-      score -= Math.min(closingDistance * 0.2, 50); // Penalidade limitada
-    }
-    
-    // Garante pontuação mínima para pistas válidas
-    return Math.max(score, 50);
+    return score;
   }
 }

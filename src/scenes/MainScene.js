@@ -159,18 +159,18 @@ export class MainScene extends Scene {
     this.dragPoints(trackEntity);
 
     // // Cria o retângulo móvel
-    // const rectangle = new Entity()
-    //   .addComponent(
-    //     new Transform(
-    //       this.canvas.width / 2 - 50,
-    //       this.canvas.height / 2 - 50,
-    //       100,
-    //       100
-    //     )
-    //   )
-    //   .addComponent(new Renderable("#FF0000"))
-    //   .addComponent(new Velocity(1, 1, 5));
+    const rectangle = new Entity()
+      .addComponent(
+        new Transform(
+          this.canvas.width / 2 - 50,
+          this.canvas.height / 2 - 50,
+          100,
+          100
+        )
+      )
+      .addComponent(new Renderable("#FF0000"))
+      // .addComponent(new Velocity(1, 1, 5));
 
-    // this.world.addEntity(rectangle);
+    this.world.addEntity(rectangle);
   }
 }

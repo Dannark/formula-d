@@ -93,6 +93,102 @@ function resetToDefaultTrack() {
   return defaultPoints;
 }
 
+// === FUNÇÕES DE GERAÇÃO SKELETON (NOVO) ===
+
+// Gera pista usando algoritmo skeleton (recomendado para evitar auto-intersecções)
+function generateSkeletonTrack(type = 'balanced', options = {}) {
+  console.log(`🦴 Gerando pista skeleton tipo "${type}"...`);
+  
+  const defaultOptions = {
+    segments: 12,
+    complexity: 0.5,
+    pointDensity: 100,
+    maxRadius: Math.min(window.innerWidth, window.innerHeight) * 0.3,
+    ...options
+  };
+  
+  const newPoints = generator.generatePresetSkeletonTrack(type, defaultOptions);
+  
+  if (newPoints && newPoints.length > 0) {
+    updateTrackPoints(newPoints);
+    console.log(`✅ Pista skeleton "${type}" gerada com ${newPoints.length} pontos`);
+  } else {
+    console.log(`❌ Falha ao gerar pista skeleton "${type}"`);
+  }
+  
+  return newPoints;
+}
+
+// Gera pista skeleton simples
+function generateSkeletonSimple(options = {}) {
+  return generateSkeletonTrack('simple', options);
+}
+
+// Gera pista skeleton balanceada (padrão)
+function generateSkeletonBalanced(options = {}) {
+  return generateSkeletonTrack('balanced', options);
+}
+
+// Gera pista skeleton complexa
+function generateSkeletonComplex(options = {}) {
+  return generateSkeletonTrack('complex', options);
+}
+
+// Gera pista skeleton orgânica
+function generateSkeletonOrganic(options = {}) {
+  return generateSkeletonTrack('organic', options);
+}
+
+// Gera pista com critérios de qualidade específicos
+function generateQualityTrack(criteria = {}) {
+  console.log('🎯 Gerando pista com critérios de qualidade...');
+  
+  const defaultCriteria = {
+    minLength: 10,
+    maxLength: 20,
+    minComplexity: 0.3,
+    maxComplexity: 0.6,
+    preferredAlgorithm: 'skeleton',
+    maxAttempts: 5,
+    ...criteria
+  };
+  
+  const newPoints = generator.generateQualityTrack(defaultCriteria);
+  
+  if (newPoints && newPoints.length > 0) {
+    updateTrackPoints(newPoints);
+    console.log(`✅ Pista de qualidade gerada com ${newPoints.length} pontos`);
+  } else {
+    console.log('❌ Falha ao gerar pista de qualidade');
+  }
+  
+  return newPoints;
+}
+
+// Gera automaticamente a melhor pista possível (novo algoritmo inteligente)
+function generateAutoTrack(options = {}) {
+  console.log('🤖 Gerando pista automaticamente (sistema inteligente)...');
+  
+  const defaultOptions = {
+    preferSkeleton: true,
+    preferDirectional: false,
+    algorithm: 'auto',
+    maxAttempts: 3,
+    ...options
+  };
+  
+  const newPoints = generator.generateBestTrack(defaultOptions);
+  
+  if (newPoints && newPoints.length > 0) {
+    updateTrackPoints(newPoints);
+    console.log(`✅ Pista automática gerada com ${newPoints.length} pontos`);
+  } else {
+    console.log('❌ Falha ao gerar pista automática');
+  }
+  
+  return newPoints;
+}
+
 // === FUNÇÕES DE GERAÇÃO PROCEDURAL ===
 
 // Gera pista direcional inteligente DIRETO (sem sistema de avaliação)
@@ -151,12 +247,15 @@ function generateSimpleDirectionalTrack(options = {}) {
   return newPoints;
 }
 
-// Gera pista inteligente (testa múltiplos geradores)
+// Gera pista inteligente (testa múltiplos geradores) - MELHORADO
 function generateBestTrack(options = {}) {
-  console.log('🏆 Gerando melhor pista possível...');
+  console.log('🏆 Gerando melhor pista possível (sistema aprimorado)...');
   
   const defaultOptions = {
     preferDirectional: true,
+    preferSkeleton: false,
+    algorithm: 'auto',
+    maxAttempts: 3,
     ...options
   };
   
@@ -283,6 +382,35 @@ function generateRandomTrack(options = {}) {
   return newPoints;
 }
 
+// Testa todos os algoritmos novos (incluindo skeleton)
+async function testAllNewAlgorithms() {
+  console.log('🧪 Testando todos os algoritmos novos...');
+  
+  const algorithms = [
+    { name: 'Skeleton Simple', func: () => generateSkeletonSimple() },
+    { name: 'Skeleton Balanced', func: () => generateSkeletonBalanced() },
+    { name: 'Skeleton Complex', func: () => generateSkeletonComplex() },
+    { name: 'Skeleton Organic', func: () => generateSkeletonOrganic() },
+    { name: 'Direcional Melhorado', func: () => generateDirectionalTrack() },
+    { name: 'Qualidade Alta', func: () => generateQualityTrack() },
+    { name: 'Automático', func: () => generateAutoTrack() }
+  ];
+  
+  for (const algo of algorithms) {
+    console.log(`\n--- Testando: ${algo.name} ---`);
+    try {
+      algo.func();
+      console.log(`✅ ${algo.name} executado com sucesso`);
+    } catch (error) {
+      console.error(`❌ Erro em ${algo.name}: ${error.message}`);
+    }
+    // Pequena pausa para ver os resultados
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  
+  console.log('\n🎉 Teste de todos os algoritmos concluído!');
+}
+
 // Função de ajuda para mostrar como usar as funções
 function trackHelp() {
   console.log(`
@@ -298,25 +426,43 @@ function trackHelp() {
    generateCircularTrack()           // Pista padrão
    generateCircularTrack(8, 0.3)     // 8 pontos, 30% da tela
 
-=== GERAÇÃO PROCEDURAL ===
+=== ALGORITMOS SKELETON (NOVO - RECOMENDADO) ===
+🦴 generateSkeletonSimple(options)
+   - Pista skeleton simples (8 segmentos, baixa complexidade)
+   
+🦴 generateSkeletonBalanced(options)
+   - Pista skeleton balanceada (12 segmentos, complexidade média) ⭐ RECOMENDADO
+   
+🦴 generateSkeletonComplex(options)
+   - Pista skeleton complexa (16 segmentos, alta complexidade)
+   
+🦴 generateSkeletonOrganic(options)
+   - Pista skeleton orgânica (20 segmentos, variação natural)
+   
+🎯 generateQualityTrack(criteria)
+   - Gera com critérios específicos de qualidade
+   - criteria: minLength, maxLength, minComplexity, maxComplexity, preferredAlgorithm
+   
+🤖 generateAutoTrack(options)
+   - Sistema inteligente escolhe automaticamente o melhor algoritmo
+
+=== GERAÇÃO DIRECIONAL (MELHORADO) ===
 🎯 generateDirectionalTrack(options)
-   - Pista direcional com múltiplas tentativas (RECOMENDADO)
-   - options: stepSize, maxSteps, turnAngle, returnPhaseRatio, clockwise, maxDistanceFromCenter
+   - Pista direcional com detecção de colisão aprimorada
+   - options: stepSize, maxSteps, turnAngle, returnPhaseRatio, clockwise
    
 ⚡ generateSimpleDirectionalTrack(options)
-   - Pista direcional com 1 tentativa apenas (MAIS RÁPIDO)
-   - Mesmas opções da função acima
+   - Versão mais rápida (1 tentativa apenas)
    
 🏆 generateBestTrack(options)
-   - options: preferDirectional
-   - Testa múltiplos geradores e escolhe o melhor
-   
+   - Testa múltiplos algoritmos e escolhe o melhor
+   - options: preferDirectional, preferSkeleton, algorithm, maxAttempts
+
+=== GERAÇÃO PERLIN NOISE ===
 🌿 generateOrganicTrack(options)
-   - options: numPoints, baseRadius, noiseAmplitude, complexity
-   - Pista circular com perturbações orgânicas (Perlin Noise)
+   - Pista circular com perturbações orgânicas
    
 🏁 generateOvalTrack(options)
-   - options: numPoints, radiusX, radiusY, noiseAmplitude
    - Pista oval com variações naturais
    
 ∞ generateFigureEightTrack(options)
@@ -326,9 +472,12 @@ function trackHelp() {
    - Pista complexa com múltiplas seções
    
 🎲 generateRandomTrack(options)
-   - Gera pista totalmente randomizada (inclui novos tipos!)
+   - Gera pista totalmente randomizada
 
-=== UTILITÁRIOS ===
+=== TESTES E UTILITÁRIOS ===
+🧪 testAllNewAlgorithms()
+   - Testa todos os novos algoritmos sequencialmente
+   
 📊 getTrackInfo()
    - Mostra informações da pista atual
    
@@ -338,18 +487,26 @@ function trackHelp() {
 ❓ trackHelp()
    - Mostra esta ajuda
 
-=== EXEMPLOS AVANÇADOS ===
-generateDirectionalTrack({ stepSize: 80, maxSteps: 40 })
-generateSimpleDirectionalTrack({ clockwise: false }) // Anti-horária
-generateDirectionalTrack({ maxDistanceFromCenter: 0.9 }) // Permite 90% da tela
-generateBestTrack({ preferDirectional: true })
-generateOrganicTrack({ numPoints: 20, noiseAmplitude: 0.5 })
-generateOvalTrack({ radiusX: 400, radiusY: 200 })
-generateComplexTrack({ sections: 4, noiseAmplitude: 0.6 })
-generateRandomTrack({ stepSize: 45 })
+=== EXEMPLOS DE USO ===
 
-💡 Dica: Todas as pistas são verificadas automaticamente para evitar cruzamentos!
-🎮 As mudanças são aplicadas instantaneamente na tela.
+🏆 Para resolver problemas de auto-intersecção:
+generateSkeletonBalanced()          // ⭐ MELHOR para evitar sobreposições
+generateAutoTrack()                 // Sistema inteligente
+generateQualityTrack()              // Com critérios específicos
+
+🎯 Para experimentar:
+generateDirectionalTrack()          // Seu algoritmo original melhorado
+generateSkeletonComplex()           // Pistas mais desafiadoras
+testAllNewAlgorithms()              // Testa tudo sequencialmente
+
+🔧 Configurações avançadas:
+generateSkeletonBalanced({ segments: 16, complexity: 0.7 })
+generateQualityTrack({ minLength: 15, preferredAlgorithm: 'skeleton' })
+generateAutoTrack({ preferSkeleton: true })
+generateDirectionalTrack({ stepSize: 80, explorationSteps: 15 })
+
+💡 RECOMENDAÇÃO: Use generateSkeletonBalanced() para resolver problemas de sobreposição!
+🎮 Todas as mudanças são aplicadas instantaneamente na tela.
   `);
 }
 
@@ -363,6 +520,16 @@ window.generateOvalTrack = generateOvalTrack;
 window.generateFigureEightTrack = generateFigureEightTrack;
 window.generateComplexTrack = generateComplexTrack;
 window.generateRandomTrack = generateRandomTrack;
+// Novas funções skeleton
+window.generateSkeletonTrack = generateSkeletonTrack;
+window.generateSkeletonSimple = generateSkeletonSimple;
+window.generateSkeletonBalanced = generateSkeletonBalanced;
+window.generateSkeletonComplex = generateSkeletonComplex;
+window.generateSkeletonOrganic = generateSkeletonOrganic;
+window.generateQualityTrack = generateQualityTrack;
+window.generateAutoTrack = generateAutoTrack;
+window.testAllNewAlgorithms = testAllNewAlgorithms;
+// Utilitários
 window.getTrackInfo = getTrackInfo;
 window.resetToDefaultTrack = resetToDefaultTrack;
 window.trackHelp = trackHelp;
@@ -372,10 +539,10 @@ window.__registerTrackEntity = registerTrackEntity;
 
 // Mostra a ajuda quando o arquivo é carregado
 console.log('🏁 Formula-D Track Debug System carregado!');
-console.log('🎯 Sistema de geração direcional melhorado disponível!');
-console.log('⚡ Nova função: generateSimpleDirectionalTrack() - mais rápida!');
-console.log('🌿 Sistema de geração procedural com Perlin Noise disponível!');
+console.log('🦴 NOVO: Sistema Skeleton - elimina auto-intersecções!');
+console.log('🎯 Sistema direcional com detecção de colisão aprimorada!');
+console.log('🤖 Sistema inteligente de seleção automática de algoritmos!');
 console.log('💡 Digite trackHelp() no console para ver todas as funções disponíveis.');
-console.log('🎲 Experimente: generateSimpleDirectionalTrack() ou generateDirectionalTrack()!');
+console.log('⭐ RECOMENDADO: generateSkeletonBalanced() - resolve problemas de sobreposição!');
 
 export { registerTrackEntity }; 

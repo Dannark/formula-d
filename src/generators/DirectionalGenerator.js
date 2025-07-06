@@ -96,6 +96,225 @@ export class DirectionalGenerator {
     
     return false;
   }
+
+  // NOVO: Verifica colisão considerando a largura da pista (corredor)
+  wouldCauseCorridorCollision(newPoint, existingPath, currentPoint, minDistance = null) {
+    const safeDistance = minDistance || this.TRACK_WIDTH;
+    
+    // Não verifica colisão com os últimos 4 pontos (conexão direta + margem)
+    const pathToCheck = existingPath.slice(0, -4);
+    
+    if (pathToCheck.length < 2) return false;
+    
+    // Verifica distância ponto-a-segmento considerando largura da pista
+    for (let i = 0; i < pathToCheck.length - 1; i++) {
+      const segmentStart = pathToCheck[i];
+      const segmentEnd = pathToCheck[i + 1];
+      
+      const distanceToSegment = this.pointToSegmentDistance(newPoint, segmentStart, segmentEnd);
+      
+      if (distanceToSegment < safeDistance) {
+        console.log(`❌ Colisão de corredor: ${Math.round(distanceToSegment)}px < ${safeDistance}px`);
+        return true;
+      }
+    }
+    
+    // Verifica intersecção de corredores (não apenas linhas centrais)
+    if (currentPoint && pathToCheck.length > 1) {
+      for (let i = 0; i < pathToCheck.length - 1; i++) {
+        const lineStart = pathToCheck[i];
+        const lineEnd = pathToCheck[i + 1];
+        
+        if (this.corridorsIntersect(currentPoint, newPoint, lineStart, lineEnd, safeDistance)) {
+          console.log(`❌ Colisão de corredor por intersecção`);
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  // Calcula distância de um ponto a um segmento de linha
+  pointToSegmentDistance(point, segmentStart, segmentEnd) {
+    const dx = segmentEnd.x - segmentStart.x;
+    const dy = segmentEnd.y - segmentStart.y;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    
+    if (length === 0) {
+      return this.distance(point, segmentStart);
+    }
+    
+    // Parâmetro t para projeção do ponto no segmento
+    const t = Math.max(0, Math.min(1, 
+      ((point.x - segmentStart.x) * dx + (point.y - segmentStart.y) * dy) / (length * length)
+    ));
+    
+    // Ponto mais próximo no segmento
+    const closestPoint = {
+      x: segmentStart.x + t * dx,
+      y: segmentStart.y + t * dy
+    };
+    
+    return this.distance(point, closestPoint);
+  }
+
+  // Verifica se dois corredores (com largura) se intersectam
+  corridorsIntersect(p1, p2, p3, p4, corridorWidth) {
+    const halfWidth = corridorWidth / 2;
+    
+    // Calcula vetores perpendiculares para cada segmento
+    const perp1 = this.getPerpendicularVector(p1, p2, halfWidth);
+    const perp2 = this.getPerpendicularVector(p3, p4, halfWidth);
+    
+    // Cria os retângulos (corredores) para cada segmento
+    const corridor1 = [
+      { x: p1.x + perp1.x, y: p1.y + perp1.y },
+      { x: p1.x - perp1.x, y: p1.y - perp1.y },
+      { x: p2.x - perp1.x, y: p2.y - perp1.y },
+      { x: p2.x + perp1.x, y: p2.y + perp1.y }
+    ];
+    
+    const corridor2 = [
+      { x: p3.x + perp2.x, y: p3.y + perp2.y },
+      { x: p3.x - perp2.x, y: p3.y - perp2.y },
+      { x: p4.x - perp2.x, y: p4.y - perp2.y },
+      { x: p4.x + perp2.x, y: p4.y + perp2.y }
+    ];
+    
+    // Verifica se os retângulos se intersectam
+    return this.polygonsIntersect(corridor1, corridor2);
+  }
+
+  // Calcula vetor perpendicular a um segmento
+  getPerpendicularVector(p1, p2, magnitude) {
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    
+    if (length === 0) return { x: 0, y: 0 };
+    
+    // Vetor perpendicular normalizado
+    return {
+      x: (-dy / length) * magnitude,
+      y: (dx / length) * magnitude
+    };
+  }
+
+  // Verifica se dois polígonos se intersectam (algoritmo SAT simplificado)
+  polygonsIntersect(poly1, poly2) {
+    // Verifica se qualquer vértice de poly1 está dentro de poly2
+    for (const vertex of poly1) {
+      if (this.pointInPolygon(vertex, poly2)) {
+        return true;
+      }
+    }
+    
+    // Verifica se qualquer vértice de poly2 está dentro de poly1
+    for (const vertex of poly2) {
+      if (this.pointInPolygon(vertex, poly1)) {
+        return true;
+      }
+    }
+    
+    // Verifica se as arestas se intersectam
+    for (let i = 0; i < poly1.length; i++) {
+      const p1 = poly1[i];
+      const p2 = poly1[(i + 1) % poly1.length];
+      
+      for (let j = 0; j < poly2.length; j++) {
+        const p3 = poly2[j];
+        const p4 = poly2[(j + 1) % poly2.length];
+        
+        if (this.linesIntersect(p1, p2, p3, p4)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  // Verifica se um ponto está dentro de um polígono (ray casting)
+  pointInPolygon(point, polygon) {
+    let inside = false;
+    
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const pi = polygon[i];
+      const pj = polygon[j];
+      
+      if (((pi.y > point.y) !== (pj.y > point.y)) &&
+          (point.x < (pj.x - pi.x) * (point.y - pi.y) / (pj.y - pi.y) + pi.x)) {
+        inside = !inside;
+      }
+    }
+    
+    return inside;
+  }
+
+  // NOVO: Verifica colisões mais inteligentes considerando densidade da pista
+  wouldCauseSmartCollision(newPoint, existingPath, currentPoint, minDistance = null) {
+    const safeDistance = minDistance || this.TRACK_WIDTH;
+    
+    // Não verifica colisão com os últimos 4 pontos
+    const pathToCheck = existingPath.slice(0, -4);
+    
+    if (pathToCheck.length < 2) return false;
+    
+    // Cria um grid espacial para otimizar verificações
+    const gridSize = this.TRACK_WIDTH;
+    const nearbySegments = this.getNearbySegments(newPoint, pathToCheck, gridSize);
+    
+    // Verifica apenas segmentos próximos
+    for (const segment of nearbySegments) {
+      const distanceToSegment = this.pointToSegmentDistance(newPoint, segment.start, segment.end);
+      
+      if (distanceToSegment < safeDistance) {
+        console.log(`❌ Colisão inteligente: ${Math.round(distanceToSegment)}px < ${safeDistance}px`);
+        return true;
+      }
+    }
+    
+    // Verifica intersecção de corredores apenas com segmentos próximos
+    if (currentPoint) {
+      for (const segment of nearbySegments) {
+        if (this.corridorsIntersect(currentPoint, newPoint, segment.start, segment.end, safeDistance)) {
+          console.log(`❌ Colisão inteligente por intersecção`);
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  // Otimização: retorna apenas segmentos próximos ao ponto
+  getNearbySegments(point, path, searchRadius) {
+    const segments = [];
+    const radiusSquared = searchRadius * searchRadius;
+    
+    for (let i = 0; i < path.length - 1; i++) {
+      const start = path[i];
+      const end = path[i + 1];
+      
+      // Verifica se o segmento está dentro do raio de busca
+      const distToStart = this.distanceSquared(point, start);
+      const distToEnd = this.distanceSquared(point, end);
+      
+      if (distToStart <= radiusSquared || distToEnd <= radiusSquared) {
+        segments.push({ start, end, index: i });
+      }
+    }
+    
+    return segments;
+  }
+
+  // Otimização: distância ao quadrado (evita sqrt)
+  distanceSquared(p1, p2) {
+    const dx = p1.x - p2.x;
+    const dy = p1.y - p2.y;
+    return dx * dx + dy * dy;
+  }
   
   // Verifica se uma sequência de movimentos criaria um loop fechado
   wouldCreateTightLoop(path, consecutiveTurns, direction) {
@@ -150,10 +369,10 @@ export class DirectionalGenerator {
   }
   
   // Gera a fase de exploração (saída)
-  generateExplorationPhase(startPoint, initialDirection, stepSize, explorationSteps, straightStartSteps, leftTurnAngle, rightTurnAngle) {
+  generateExplorationPhase(startPoint, initialDirection, stepSize, explorationSteps, straightStartSteps, leftTurnAngleRange, rightTurnAngleRange) {
     console.log(`🚀 Iniciando fase de exploração (${explorationSteps} passos, ${straightStartSteps} retos iniciais)`);
-    console.log(`   - Ângulo esquerda: ${Math.round(leftTurnAngle * 180 / Math.PI)}°`);
-    console.log(`   - Ângulo direita: ${Math.round(rightTurnAngle * 180 / Math.PI)}°`);
+    console.log(`   - Ângulo esquerda: ${Math.round(leftTurnAngleRange.min * 180 / Math.PI)}°-${Math.round(leftTurnAngleRange.max * 180 / Math.PI)}°`);
+    console.log(`   - Ângulo direita: ${Math.round(rightTurnAngleRange.min * 180 / Math.PI)}°-${Math.round(rightTurnAngleRange.max * 180 / Math.PI)}°`);
     
     const path = [startPoint];
     let currentDirection = initialDirection;
@@ -171,6 +390,14 @@ export class DirectionalGenerator {
     let consecutiveLeftTurns = 0;
     let consecutiveRightTurns = 0;
     
+    // Sistema de ângulos variáveis
+    let currentLeftAngle = this.getRandomAngleInRange(leftTurnAngleRange);
+    let currentRightAngle = this.getRandomAngleInRange(rightTurnAngleRange);
+    let angleConsistencyCounter = 0;
+    let consistencyTarget = this.getConsistencyTarget(); // 2-4 células
+    
+    console.log(`   - Ângulos iniciais: esquerda ${Math.round(currentLeftAngle * 180 / Math.PI)}°, direita ${Math.round(currentRightAngle * 180 / Math.PI)}° (mantendo por ${consistencyTarget} células)`);
+    
     // Restante dos passos de exploração (após os passos retos iniciais)
     for (let step = straightStartSteps + 1; step <= explorationSteps; step++) {
       // Pesos baseados nos ângulos - direita mais favorecida por ser mais agressiva
@@ -179,9 +406,9 @@ export class DirectionalGenerator {
       const rightWeight = 2;    // Favorece direita por ser clockwise
       
       const moveOptions = [
-        { direction: currentDirection - leftTurnAngle, type: 'left', weight: leftWeight },   // Negativo para esquerda
-        { direction: currentDirection, type: 'straight', weight: straightWeight },
-        { direction: currentDirection + rightTurnAngle, type: 'right', weight: rightWeight } // Positivo para direita
+        { direction: currentDirection - currentLeftAngle, type: 'left', weight: leftWeight, angle: currentLeftAngle },   
+        { direction: currentDirection, type: 'straight', weight: straightWeight, angle: 0 },
+        { direction: currentDirection + currentRightAngle, type: 'right', weight: rightWeight, angle: currentRightAngle } 
       ];
       
       // Normaliza as direções
@@ -219,11 +446,12 @@ export class DirectionalGenerator {
               option.type
             );
             
-            if (!this.wouldCauseCollision(testPoint, path, currentPoint) && !wouldLoop) {
+            if (!this.wouldCauseSmartCollision(testPoint, path, currentPoint) && !wouldLoop) {
               selectedOption = {
                 direction: option.direction,
                 point: testPoint,
-                type: option.type
+                type: option.type,
+                angle: option.angle
               };
               break;
             }
@@ -245,7 +473,8 @@ export class DirectionalGenerator {
         selectedOption = {
           direction: this.normalizeAngle(currentDirection),
           point: this.calculateNextPoint(currentPoint, currentDirection, stepSize * 0.7),
-          type: 'straight'
+          type: 'straight',
+          angle: 0
         };
       }
       
@@ -261,19 +490,40 @@ export class DirectionalGenerator {
         consecutiveRightTurns = 0;
       }
       
+      // Gerencia a consistência dos ângulos
+      angleConsistencyCounter++;
+      
+      // Se atingiu o alvo de consistência OU mudou de direção, gera novos ângulos
+      if (angleConsistencyCounter >= consistencyTarget || selectedOption.type === 'straight') {
+        const oldLeftAngle = currentLeftAngle;
+        const oldRightAngle = currentRightAngle;
+        
+        currentLeftAngle = this.getRandomAngleInRange(leftTurnAngleRange);
+        currentRightAngle = this.getRandomAngleInRange(rightTurnAngleRange);
+        angleConsistencyCounter = 0;
+        consistencyTarget = this.getConsistencyTarget();
+        
+        console.log(`   🔄 Novos ângulos: esquerda ${Math.round(oldLeftAngle * 180 / Math.PI)}°→${Math.round(currentLeftAngle * 180 / Math.PI)}°, direita ${Math.round(oldRightAngle * 180 / Math.PI)}°→${Math.round(currentRightAngle * 180 / Math.PI)}° (mantendo por ${consistencyTarget} células)`);
+      }
+      
       // Aplica o movimento
       currentDirection = selectedOption.direction;
       currentPoint = selectedOption.point;
       path.push(currentPoint);
       
-      console.log(`   Passo ${step}: ${selectedOption.type} (${path.length} pontos total)`);
+      const angleInfo = selectedOption.angle > 0 ? ` (${Math.round(selectedOption.angle * 180 / Math.PI)}°)` : '';
+      console.log(`   Passo ${step}: ${selectedOption.type}${angleInfo} (${path.length} pontos total)`);
     }
     
-    return { path, finalDirection: currentDirection };
+    return { 
+      path, 
+      finalDirection: currentDirection,
+      finalAngles: { left: currentLeftAngle, right: currentRightAngle }
+    };
   }
   
   // Gera a fase de retorno (sempre clockwise)
-  generateReturnPhase(explorationPath, finalDirection, stepSize, startPoint, leftTurnAngle, rightTurnAngle) {
+  generateReturnPhase(explorationPath, finalDirection, stepSize, startPoint, leftTurnAngleRange, rightTurnAngleRange, initialAngles) {
     console.log(`🔄 Iniciando fase de retorno (clockwise)`);
     
     const path = [...explorationPath];
@@ -284,9 +534,23 @@ export class DirectionalGenerator {
     let returnSteps = 0;
     let stuckCounter = 0; // Contador para detectar quando está preso
     
+    // Sistema de ângulos variáveis para a volta
+    let currentLeftAngle = initialAngles.left;
+    let currentRightAngle = initialAngles.right;
+    let angleConsistencyCounter = 0;
+    let consistencyTarget = this.getConsistencyTarget();
+    
+    // Distâncias de controle
+    const ALIGNMENT_DISTANCE = 500; // Começa a alinhar quando está a 500px
+    const AGGRESSIVE_ALIGNMENT = 350; // Alinhamento agressivo a partir de 350px
+    const CLOSE_DISTANCE = stepSize * 4; // Considera "perto" quando está a 4x stepSize
+    const FINAL_DISTANCE = stepSize * 1.5; // Pode fechar quando está a 1.5x stepSize
+    
     while (returnSteps < maxReturnSteps) {
+      const distanceToStart = this.distance(currentPoint, startPoint);
+      
       // Verifica se pode fechar o circuito
-      if (returnSteps > 5 && this.canCloseCircuit(currentPoint, startPoint, path, stepSize)) {
+      if (returnSteps > 5 && distanceToStart <= FINAL_DISTANCE && this.canCloseCircuit(currentPoint, startPoint, path, stepSize)) {
         console.log(`✅ Circuito fechado após ${returnSteps} passos de retorno`);
         break;
       }
@@ -295,14 +559,17 @@ export class DirectionalGenerator {
       const dx = startPoint.x - currentPoint.x;
       const dy = startPoint.y - currentPoint.y;
       const angleToStart = Math.atan2(dy, dx);
-      const distanceToStart = this.distance(currentPoint, startPoint);
       
-      // Opções de movimento priorizando sentido horário (clockwise)
-      // Na volta, prioriza ainda mais a direita
+      // Calcula diferença angular atual
+      let angleDiff = angleToStart - currentDirection;
+      if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+      if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+      
+      // Opções de movimento
       const moveOptions = [
-        { direction: currentDirection - leftTurnAngle, type: 'left', weight: 0.5 },   // Peso baixo para esquerda
-        { direction: currentDirection, type: 'straight', weight: 2 },
-        { direction: currentDirection + rightTurnAngle, type: 'right', weight: 4 }    // Peso alto para direita (clockwise)
+        { direction: currentDirection - currentLeftAngle, type: 'left', weight: 0.5, angle: currentLeftAngle },   
+        { direction: currentDirection, type: 'straight', weight: 2, angle: 0 },
+        { direction: currentDirection + currentRightAngle, type: 'right', weight: 4, angle: currentRightAngle }    
       ];
       
       // Normaliza as direções
@@ -310,24 +577,93 @@ export class DirectionalGenerator {
         option.direction = this.normalizeAngle(option.direction);
       });
       
-      // Ajusta pesos baseado na direção ao início
-      let angleDiff = angleToStart - currentDirection;
-      if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-      if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-      
-      // Se está se aproximando do ponto inicial, prioriza a direção correta
-      if (distanceToStart < stepSize * 4) {
-        if (Math.abs(angleDiff) < Math.PI / 4) {
-          moveOptions[1].weight = 5; // Prioriza ir reto
-        } else if (angleDiff > 0) {
-          moveOptions[2].weight = 5; // Prioriza direita
+      // SISTEMA DE ALINHAMENTO AGRESSIVO
+      if (distanceToStart <= ALIGNMENT_DISTANCE) {
+        const alignmentFactor = Math.max(0.2, (ALIGNMENT_DISTANCE - distanceToStart) / ALIGNMENT_DISTANCE);
+        const isAggressiveZone = distanceToStart <= AGGRESSIVE_ALIGNMENT;
+        
+        console.log(`   🎯 Alinhando: ${Math.round(distanceToStart)}px do início (fator: ${alignmentFactor.toFixed(2)}, agressivo: ${isAggressiveZone})`);
+        
+        // Calcula qual movimento levaria mais próximo ao ângulo desejado
+        const leftAngleDiff = Math.abs(this.normalizeAngleDifference(angleToStart - moveOptions[0].direction));
+        const straightAngleDiff = Math.abs(this.normalizeAngleDifference(angleToStart - moveOptions[1].direction));
+        const rightAngleDiff = Math.abs(this.normalizeAngleDifference(angleToStart - moveOptions[2].direction));
+        
+        // Encontra a melhor direção (menor diferença angular)
+        const minDiff = Math.min(leftAngleDiff, straightAngleDiff, rightAngleDiff);
+        
+        // ALINHAMENTO SUPER AGRESSIVO na zona crítica
+        if (isAggressiveZone) {
+          console.log(`   🚨 MODO AGRESSIVO: Forçando alinhamento!`);
+          
+          // Reseta pesos para dar prioridade total ao alinhamento
+          moveOptions[0].weight = 0.1;
+          moveOptions[1].weight = 0.1;
+          moveOptions[2].weight = 0.1;
+          
+          // Aplica bônus MASSIVO para a melhor direção
+          if (leftAngleDiff === minDiff) {
+            moveOptions[0].weight = 10;
+            console.log(`     ↰ OVERRIDE ESQUERDA: peso 10 (diff: ${Math.round(leftAngleDiff * 180 / Math.PI)}°)`);
+          }
+          if (straightAngleDiff === minDiff) {
+            moveOptions[1].weight = 10;
+            console.log(`     ↑ OVERRIDE RETO: peso 10 (diff: ${Math.round(straightAngleDiff * 180 / Math.PI)}°)`);
+          }
+          if (rightAngleDiff === minDiff) {
+            moveOptions[2].weight = 10;
+            console.log(`     ↱ OVERRIDE DIREITA: peso 10 (diff: ${Math.round(rightAngleDiff * 180 / Math.PI)}°)`);
+          }
         } else {
-          moveOptions[0].weight = 3; // Prioriza esquerda (mas ainda menos que direita)
+          // Alinhamento normal (menos agressivo)
+          const bonusMultiplier = isAggressiveZone ? 8 : 4;
+          
+          if (leftAngleDiff === minDiff) {
+            moveOptions[0].weight += alignmentFactor * bonusMultiplier;
+            console.log(`     ↰ Bônus esquerda: +${(alignmentFactor * bonusMultiplier).toFixed(1)} (diff: ${Math.round(leftAngleDiff * 180 / Math.PI)}°)`);
+          }
+          if (straightAngleDiff === minDiff) {
+            moveOptions[1].weight += alignmentFactor * (bonusMultiplier + 1);
+            console.log(`     ↑ Bônus reto: +${(alignmentFactor * (bonusMultiplier + 1)).toFixed(1)} (diff: ${Math.round(straightAngleDiff * 180 / Math.PI)}°)`);
+          }
+          if (rightAngleDiff === minDiff) {
+            moveOptions[2].weight += alignmentFactor * bonusMultiplier;
+            console.log(`     ↱ Bônus direita: +${(alignmentFactor * bonusMultiplier).toFixed(1)} (diff: ${Math.round(rightAngleDiff * 180 / Math.PI)}°)`);
+          }
         }
-      } else {
-        // Se está longe, prioriza virar à direita (clockwise)
+        
+        // Se está muito próximo e bem alinhado, mega bônus para ir reto
+        if (distanceToStart <= CLOSE_DISTANCE && minDiff < Math.PI / 6) { // < 30 graus
+          if (straightAngleDiff === minDiff) {
+            moveOptions[1].weight += 8;
+            console.log(`     🎯 Muito próximo e alinhado: mega bônus reto (+8)!`);
+          }
+        }
+        
+        // Override total se a diferença angular for muito pequena (já bem alinhado)
+        if (minDiff < Math.PI / 8) { // < 22.5 graus - bem alinhado
+          if (leftAngleDiff === minDiff) moveOptions[0].weight += 15;
+          if (straightAngleDiff === minDiff) moveOptions[1].weight += 15;
+          if (rightAngleDiff === minDiff) moveOptions[2].weight += 15;
+          console.log(`     🎯 BEM ALINHADO: mega override (+15)!`);
+        }
+      }
+      
+      // Sistema original de ajuste por proximidade (agora mais sutil)
+      else if (distanceToStart < CLOSE_DISTANCE) {
+        if (Math.abs(angleDiff) < Math.PI / 4) {
+          moveOptions[1].weight += 1; // Bônus menor para ir reto
+        } else if (angleDiff > 0) {
+          moveOptions[2].weight += 1; // Bônus menor para direita
+        } else {
+          moveOptions[0].weight += 1; // Bônus menor para esquerda
+        }
+      }
+      
+      // Mantém tendência clockwise apenas quando longe
+      else if (distanceToStart > ALIGNMENT_DISTANCE) {
         if (angleDiff > 0) {
-          moveOptions[2].weight = 5; // Aumenta muito o peso de virar à direita
+          moveOptions[2].weight += 1; // Favorece direita quando longe
         }
       }
       
@@ -344,11 +680,12 @@ export class DirectionalGenerator {
           if (randomValue <= 0) {
             const testPoint = this.calculateNextPoint(currentPoint, option.direction, stepSize);
             
-            if (!this.wouldCauseCollision(testPoint, path, currentPoint)) {
+            if (!this.wouldCauseSmartCollision(testPoint, path, currentPoint)) {
               selectedOption = {
                 direction: option.direction,
                 point: testPoint,
-                type: option.type
+                type: option.type,
+                angle: option.angle
               };
               break;
             }
@@ -369,7 +706,8 @@ export class DirectionalGenerator {
         selectedOption = {
           direction: this.normalizeAngle(currentDirection),
           point: this.calculateNextPoint(currentPoint, currentDirection, stepSize * 0.7),
-          type: 'straight'
+          type: 'straight',
+          angle: 0
         };
         stuckCounter++;
       } else {
@@ -383,9 +721,27 @@ export class DirectionalGenerator {
         selectedOption = {
           direction: randomDirection,
           point: this.calculateNextPoint(currentPoint, randomDirection, stepSize * 0.5),
-          type: 'random'
+          type: 'random',
+          angle: 0
         };
         stuckCounter = 0;
+      }
+      
+      // Gerencia a consistência dos ângulos (só na zona não-agressiva)
+      if (distanceToStart > AGGRESSIVE_ALIGNMENT) {
+        angleConsistencyCounter++;
+        
+        if (angleConsistencyCounter >= consistencyTarget || selectedOption.type === 'straight') {
+          const oldLeftAngle = currentLeftAngle;
+          const oldRightAngle = currentRightAngle;
+          
+          currentLeftAngle = this.getRandomAngleInRange(leftTurnAngleRange);
+          currentRightAngle = this.getRandomAngleInRange(rightTurnAngleRange);
+          angleConsistencyCounter = 0;
+          consistencyTarget = this.getConsistencyTarget();
+          
+          console.log(`   🔄 Volta - Novos ângulos: esquerda ${Math.round(oldLeftAngle * 180 / Math.PI)}°→${Math.round(currentLeftAngle * 180 / Math.PI)}°, direita ${Math.round(oldRightAngle * 180 / Math.PI)}°→${Math.round(currentRightAngle * 180 / Math.PI)}°`);
+        }
       }
       
       // Aplica o movimento
@@ -394,7 +750,8 @@ export class DirectionalGenerator {
       path.push(currentPoint);
       
       returnSteps++;
-      console.log(`   Retorno ${returnSteps}: ${selectedOption.type} (distância ao início: ${Math.round(distanceToStart)}px)`);
+      const angleInfo = selectedOption.angle > 0 ? ` (${Math.round(selectedOption.angle * 180 / Math.PI)}°)` : '';
+      console.log(`   Retorno ${returnSteps}: ${selectedOption.type}${angleInfo} (${Math.round(distanceToStart)}px do início)`);
     }
     
     if (returnSteps >= maxReturnSteps) {
@@ -404,6 +761,25 @@ export class DirectionalGenerator {
     return path;
   }
   
+  // Função auxiliar para normalizar diferença de ângulo
+  normalizeAngleDifference(angleDiff) {
+    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+    return angleDiff;
+  }
+  
+  // Função auxiliar para gerar ângulo aleatório dentro de um range
+  getRandomAngleInRange(angleRange) {
+    const diff = angleRange.max - angleRange.min;
+    return angleRange.min + (this.random() * diff);
+  }
+  
+  // Função auxiliar para determinar quantas células manter o mesmo ângulo (consistência)
+  getConsistencyTarget() {
+    // Gera um número entre 2 e 4 células para manter consistência
+    return Math.floor(this.random() * 3) + 2; // 2, 3 ou 4
+  }
+  
   // Gera uma pista completa
   generateDirectionalTrack(options = {}) {
     const {
@@ -411,9 +787,9 @@ export class DirectionalGenerator {
       centerY = window.innerHeight / 2,
       stepSize = 100, // Tamanho do passo (distância entre pontos)
       explorationSteps = 10, // Número de passos de exploração
-      straightStartSteps = 4, // Número de passos retos iniciais (área de largada)
-      leftTurnAngle = 35 * Math.PI / 180,  // 35 graus para esquerda (mais suave)
-      rightTurnAngle = 75 * Math.PI / 180, // 75 graus para direita (mais agressivo)
+      straightStartSteps = 6, // Número de passos retos iniciais (área de largada)
+      leftTurnAngleRange = { min: 20 * Math.PI / 180, max: 35 * Math.PI / 180 },  // 25-40 graus para esquerda (mais variado)
+      rightTurnAngleRange = { min: 30 * Math.PI / 180, max: 65 * Math.PI / 180 }, // 30-75 graus para direita (mais variado)
       initialDirection = null // Direção inicial (null = aleatória)
     } = options;
     
@@ -441,8 +817,8 @@ export class DirectionalGenerator {
       stepSize, 
       explorationSteps,
       straightStartSteps,
-      leftTurnAngle,
-      rightTurnAngle
+      leftTurnAngleRange,
+      rightTurnAngleRange
     );
     
     // Fase de retorno
@@ -451,8 +827,9 @@ export class DirectionalGenerator {
       explorationResult.finalDirection,
       stepSize,
       startPoint,
-      leftTurnAngle,
-      rightTurnAngle
+      leftTurnAngleRange,
+      rightTurnAngleRange,
+      explorationResult.finalAngles
     );
     
     console.log(`📊 Pista completa gerada com ${completePath.length} pontos`);

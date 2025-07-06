@@ -1,23 +1,29 @@
-import { PerlinNoiseGenerator } from './PerlinNoiseGenerator.js';
 import { DirectionalGenerator } from './DirectionalGenerator.js';
+import { PerlinNoiseGenerator } from './PerlinNoiseGenerator.js';
+import { SkeletonTrackGenerator } from './SkeletonTrackGenerator.js';
 
 export class TrackGenerator {
   constructor(seed = Math.random()) {
-    this.seed = seed;
-    this.perlinGenerator = new PerlinNoiseGenerator(seed);
     this.directionalGenerator = new DirectionalGenerator(seed);
+    this.perlinGenerator = new PerlinNoiseGenerator(seed);
+    this.skeletonGenerator = new SkeletonTrackGenerator(seed);
   }
+
+  // === GERADORES DIRECIONAIS ===
   
-  // === GERADOR DIRECIONAL (NOVO) ===
-  
-  // Gera uma pista usando navegação direcional inteligente
+  // Gera uma pista direcional avançada
   generateDirectionalTrack(options = {}) {
-    return this.directionalGenerator.generateSafeDirectionalTrack(options);
+    return this.directionalGenerator.generateDirectionalTrack(options);
   }
+
+  // Gera uma pista direcional com múltiplas tentativas
+  generateSafeDirectionalTrack(options = {}, maxAttempts = 3) {
+    return this.directionalGenerator.generateSafeDirectionalTrack(options, maxAttempts);
+  }
+
+  // === GERADORES PERLIN NOISE ===
   
-  // === GERADORES PERLIN NOISE (LEGADO) ===
-  
-  // Gera uma pista circular com perturbações orgânicas
+  // Gera uma pista orgânica circular
   generateOrganicCircuit(options = {}) {
     return this.perlinGenerator.generateOrganicCircuit(options);
   }
@@ -36,7 +42,24 @@ export class TrackGenerator {
   generateComplexCircuit(options = {}) {
     return this.perlinGenerator.generateComplexCircuit(options);
   }
+
+  // === GERADORES SKELETON ===
   
+  // Gera uma pista usando o método de skeleton
+  generateSkeletonTrack(options = {}) {
+    return this.skeletonGenerator.generateSkeletonTrack(options);
+  }
+
+  // Gera uma pista skeleton com preset
+  generatePresetSkeletonTrack(type = 'balanced', options = {}) {
+    return this.skeletonGenerator.generatePresetTrack(type, options);
+  }
+
+  // Gera a melhor pista skeleton após múltiplas tentativas
+  generateBestSkeletonTrack(options = {}, attempts = 3) {
+    return this.skeletonGenerator.generateBestSkeletonTrack(options, attempts);
+  }
+
   // === UTILITÁRIOS ===
   
   // Verifica se a pista tem auto-interseções (cruzamentos)
@@ -53,85 +76,77 @@ export class TrackGenerator {
   generateSimpleCircle(options = {}) {
     return this.perlinGenerator.generateSimpleCircle(options);
   }
-  
-  // === INTERFACE UNIFICADA ===
-  
-  // Gera uma pista aleatória escolhendo entre todos os tipos disponíveis
-  generateRandomTrack(options = {}) {
-    const types = ['directional', 'organic', 'oval', 'figure8', 'complex'];
-    const randomType = types[Math.floor(Math.random() * types.length)];
-    
-    console.log(`🎲 Gerando pista aleatória do tipo: ${randomType}`);
-    
-    switch (randomType) {
-      case 'directional':
-        return this.generateDirectionalTrack(options);
-      case 'organic':
-        return this.generateOrganicCircuit(options);
-      case 'oval':
-        return this.generateOrganicOval(options);
-      case 'figure8':
-        return this.generateOrganicFigureEight(options);
-      case 'complex':
-        return this.generateComplexCircuit(options);
-      default:
-        return this.generateDirectionalTrack(options);
-    }
-  }
+
+  // === GERADOR INTELIGENTE ===
   
   // Gera uma pista inteligente baseada em parâmetros de qualidade
   generateBestTrack(options = {}) {
     const {
-      preferDirectional = true,
-      maxAttempts = 3
+      preferDirectional = false,
+      preferSkeleton = true,
+      maxAttempts = 3,
+      algorithm = 'auto' // 'auto', 'directional', 'skeleton', 'perlin'
     } = options;
     
     let bestTrack = null;
-    let bestScore = -1; // Mudança: aceita qualquer pontuação positiva
+    let bestScore = -1;
     
-    const generators = preferDirectional 
-      ? ['directional', 'organic', 'oval'] 
-      : ['organic', 'oval', 'figure8', 'complex'];
+    // Determina quais algoritmos testar baseado nas preferências
+    let algorithmsToTest = [];
     
-    for (const type of generators) {
-      console.log(`🔍 Testando gerador: ${type}`);
+    if (algorithm === 'auto') {
+      if (preferSkeleton) {
+        algorithmsToTest = ['skeleton', 'directional', 'organic'];
+      } else if (preferDirectional) {
+        algorithmsToTest = ['directional', 'skeleton', 'organic'];
+      } else {
+        algorithmsToTest = ['skeleton', 'directional', 'organic', 'oval'];
+      }
+    } else {
+      algorithmsToTest = [algorithm];
+    }
+    
+    for (const alg of algorithmsToTest) {
+      console.log(`🔍 Testando algoritmo: ${alg}`);
       
       let track;
-      switch (type) {
-        case 'directional':
-          track = this.generateDirectionalTrack(options);
-          break;
-        case 'organic':
-          track = this.generateOrganicCircuit(options);
-          break;
-        case 'oval':
-          track = this.generateOrganicOval(options);
-          break;
-        case 'figure8':
-          track = this.generateOrganicFigureEight(options);
-          break;
-        case 'complex':
-          track = this.generateComplexCircuit(options);
-          break;
-      }
-      
-      // Se a pista foi gerada com sucesso, use ela mesmo com pontuação baixa
-      if (track && track.length > 0) {
-        const score = this.scoreTrack(track);
-        console.log(`   - Pontuação: ${score.toFixed(2)} (${track.length} pontos)`);
-        
-        if (score > bestScore) {
-          bestScore = score;
-          bestTrack = track;
+      try {
+        switch (alg) {
+          case 'directional':
+            track = this.generateSafeDirectionalTrack(options, maxAttempts);
+            break;
+          case 'skeleton':
+            track = this.generateBestSkeletonTrack(options, maxAttempts);
+            break;
+          case 'organic':
+            track = this.generateOrganicCircuit(options);
+            break;
+          case 'oval':
+            track = this.generateOrganicOval(options);
+            break;
+          case 'figure8':
+            track = this.generateOrganicFigureEight(options);
+            break;
+          case 'complex':
+            track = this.generateComplexCircuit(options);
+            break;
+          default:
+            track = this.generateBestSkeletonTrack(options, maxAttempts);
         }
         
-        // Se ainda não tem uma pista válida, aceita qualquer uma que foi gerada
-        if (bestTrack === null) {
-          bestTrack = track;
-          bestScore = score;
+        if (track && track.length > 0) {
+          const score = this.scoreTrack(track);
+          console.log(`   - Pontuação: ${score.toFixed(2)} (${track.length} pontos)`);
+          
+          if (score > bestScore) {
+            bestScore = score;
+            bestTrack = track;
+          }
+        } else {
+          console.log(`   - ❌ Falha na geração`);
         }
-      } else {
-        console.log(`   - ❌ Falha na geração`);
+      } catch (error) {
+        console.log(`   - ❌ Erro na geração: ${error.message}`);
       }
     }
     
@@ -139,15 +154,84 @@ export class TrackGenerator {
       console.log(`✅ Melhor pista selecionada (pontuação: ${bestScore.toFixed(2)}, ${bestTrack.length} pontos)`);
       return bestTrack;
     } else {
-      console.log(`❌ Nenhuma pista válida gerada`);
-      return null;
+      console.log(`❌ Nenhuma pista válida gerada, usando fallback`);
+      return this.generateSimpleCircle(options);
+    }
+  }
+
+  // === GERADOR AVANÇADO COM CRITÉRIOS DE QUALIDADE ===
+  
+  // Gera uma pista com critérios específicos de qualidade
+  generateQualityTrack(criteria = {}) {
+    const {
+      minLength = 10,
+      maxLength = 25,
+      minComplexity = 0.3,
+      maxComplexity = 0.7,
+      preferredAlgorithm = 'skeleton',
+      maxAttempts = 5
+    } = criteria;
+    
+    console.log('🎯 Gerando pista com critérios de qualidade...');
+    console.log(`   - Comprimento: ${minLength}-${maxLength} pontos`);
+    console.log(`   - Complexidade: ${minComplexity}-${maxComplexity}`);
+    console.log(`   - Algoritmo preferido: ${preferredAlgorithm}`);
+    
+    let bestTrack = null;
+    let bestScore = -1;
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      let track;
+      
+      // Ajusta parâmetros baseado nos critérios
+      const complexity = minComplexity + (maxComplexity - minComplexity) * Math.random();
+      const segments = Math.floor(minLength + (maxLength - minLength) * Math.random());
+      
+      const options = {
+        segments,
+        complexity,
+        pointDensity: 100
+      };
+      
+      switch (preferredAlgorithm) {
+        case 'skeleton':
+          track = this.generateSkeletonTrack(options);
+          break;
+        case 'directional':
+          track = this.generateDirectionalTrack({
+            ...options,
+            explorationSteps: segments,
+            leftTurnAngleRange: { min: 20 * Math.PI / 180, max: 35 * Math.PI / 180 },
+            rightTurnAngleRange: { min: 30 * Math.PI / 180, max: 65 * Math.PI / 180 }
+          });
+          break;
+        default:
+          track = this.generateSkeletonTrack(options);
+      }
+      
+      if (track && track.length >= minLength && track.length <= maxLength) {
+        const score = this.scoreTrack(track);
+        
+        if (score > bestScore) {
+          bestScore = score;
+          bestTrack = track;
+        }
+      }
+    }
+    
+    if (bestTrack) {
+      console.log(`✅ Pista de qualidade gerada (pontuação: ${bestScore.toFixed(2)})`);
+      return bestTrack;
+    } else {
+      console.log(`⚠️ Critérios não atendidos, usando melhor pista disponível`);
+      return this.generateBestTrack({ algorithm: preferredAlgorithm });
     }
   }
   
   // Pontua uma pista com base em critérios de qualidade
   scoreTrack(track) {
-    // Delega para o gerador direcional que tem um sistema de pontuação mais sofisticado
-    return this.directionalGenerator.scoreTrack(track);
+    // Usa o sistema de pontuação do skeleton generator que é mais avançado
+    return this.skeletonGenerator.scoreTrack(track);
   }
 }
 

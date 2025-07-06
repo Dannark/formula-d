@@ -3,7 +3,7 @@ import { BaseTrackRenderer } from "./BaseTrackRenderer.js";
 import { InnerBoundaryRenderer } from "./InnerBoundaryRenderer.js";
 import { MiddleBoundaryRenderer } from "./MiddleBoundaryRenderer.js";
 import { OuterBoundaryRenderer } from "./OuterBoundaryRenderer.js";
-import { trackColorConfig } from "./TrackColorConfig.js";
+import { trackColorConfig } from "../../config/TrackColorConfig.js";
 
 export class TrackRenderSystem {
   constructor(canvas) {
@@ -30,17 +30,23 @@ export class TrackRenderSystem {
   renderTrack(track) {
     const points = track.points;
 
-    // Desenha a base da pista (linha central azul + pontos vermelhos numerados)
+    // Primeira passagem: calcula todos os pontos das fronteiras
+    const innerPoints = this.innerBoundaryRenderer.calculatePerpendicularLinesEndPoints(points);
+    const middlePoints = this.middleBoundaryRenderer.calculatePerpendicularLinesEndPoints(innerPoints);
+    const outerPoints = this.outerBoundaryRenderer.calculatePerpendicularLinesEndPoints(middlePoints, innerPoints);
+
+    // Segunda passagem: desenha as células com preenchimento e depois as linhas
+    // Desenha apenas a linha central (sem células)
     this.baseTrackRenderer.render(points);
 
-    // Desenha a primeira faixa (linhas verdes + curva preta)
-    const outerPoints = this.innerBoundaryRenderer.render(points);
+    // Desenha a segunda faixa (entre linha central e inner boundary)
+    this.innerBoundaryRenderer.render(points, innerPoints);
 
-    // Desenha a segunda faixa (linhas laranjas + curvas roxas)
-    const outerMostPoints = this.middleBoundaryRenderer.render(outerPoints);
+    // Desenha a terceira faixa (entre inner boundary e middle boundary)
+    this.middleBoundaryRenderer.render(innerPoints, middlePoints);
 
-    // Desenha a terceira faixa (linhas vermelhas + curvas cinzas)
-    this.outerBoundaryRenderer.render(outerMostPoints, outerPoints);
+    // Desenha a quarta faixa (entre middle boundary e outer boundary)
+    this.outerBoundaryRenderer.render(middlePoints, innerPoints, outerPoints);
   }
 }
 

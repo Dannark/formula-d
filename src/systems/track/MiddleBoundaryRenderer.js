@@ -1,10 +1,142 @@
 import { TrackHelper } from "./TrackHelper.js";
-import { trackColorConfig } from "./TrackColorConfig.js";
+import { trackColorConfig } from "../../config/TrackColorConfig.js";
 
 export class MiddleBoundaryRenderer {
   constructor(ctx, cellWidth) {
     this.ctx = ctx;
     this.cellWidth = cellWidth;
+  }
+
+  // Calcula múltiplos pontos ao longo de uma curva de Bézier
+  calculateBezierCurvePoints(p0, cp1, cp2, p1, numPoints = 20) {
+    const points = [];
+    for (let i = 0; i <= numPoints; i++) {
+      const t = i / numPoints;
+      points.push(TrackHelper.calculateBezierPoint(p0, cp1, cp2, p1, t));
+    }
+    return points;
+  }
+
+  // Renderiza o preenchimento das células da terceira faixa
+  renderCellBackground(points, outerPoints) {
+    const ctx = this.ctx;
+    const numPoints = points.length;
+    
+    // Define a cor de preenchimento para a terceira faixa
+    ctx.fillStyle = "rgba(255, 192, 203, 0.3)"; // nunca use trackColorConfig.getColor aqui
+    
+    // Para cada célula, cria um polígono e preenche
+    for (let i = 0; i < numPoints; i++) {
+      const currentPoint = points[i];
+      const nextPoint = points[(i + 1) % numPoints];
+      const currentOuterPoint = outerPoints[i];
+      const nextOuterPoint = outerPoints[(i + 1) % numPoints];
+      
+      // Calcula os pontos de controle para as curvas
+      const prevPoint = points[(i - 1 + numPoints) % numPoints];
+      const nextNextPoint = points[(i + 2) % numPoints];
+      const innerControlPoints = TrackHelper.calculateControlPoints(currentPoint, nextPoint, prevPoint, nextNextPoint);
+      
+      const prevOuterPoint = outerPoints[(i - 1 + numPoints) % numPoints];
+      const nextNextOuterPoint = outerPoints[(i + 2) % numPoints];
+      const outerControlPoints = TrackHelper.calculateControlPoints(currentOuterPoint, nextOuterPoint, prevOuterPoint, nextNextOuterPoint);
+      
+      // Calcula pontos ao longo da curva interna
+      const innerCurvePoints = this.calculateBezierCurvePoints(
+        currentPoint, innerControlPoints.cp1, innerControlPoints.cp2, nextPoint, 15
+      );
+      
+      // Calcula pontos ao longo da curva externa
+      const outerCurvePoints = this.calculateBezierCurvePoints(
+        currentOuterPoint, outerControlPoints.cp1, outerControlPoints.cp2, nextOuterPoint, 15
+      );
+      
+      // Desenha o polígono da célula
+      ctx.beginPath();
+      
+      // Desenha a curva interna (da direita para a esquerda)
+      ctx.moveTo(innerCurvePoints[0].x, innerCurvePoints[0].y);
+      for (let j = 1; j < innerCurvePoints.length; j++) {
+        ctx.lineTo(innerCurvePoints[j].x, innerCurvePoints[j].y);
+      }
+      
+      // Conecta com a curva externa
+      ctx.lineTo(outerCurvePoints[outerCurvePoints.length - 1].x, outerCurvePoints[outerCurvePoints.length - 1].y);
+      
+      // Desenha a curva externa (da esquerda para a direita)
+      for (let j = outerCurvePoints.length - 2; j >= 0; j--) {
+        ctx.lineTo(outerCurvePoints[j].x, outerCurvePoints[j].y);
+      }
+      
+      // Fecha o polígono
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // Renderiza os números das células no centro
+  renderCellNumbers(points, outerPoints) {
+    const ctx = this.ctx;
+    const numPoints = points.length;
+    
+    // Configuração do texto
+    ctx.fillStyle = ("rgba(0, 0, 0, 0.2)");
+    ctx.font = "bold 24px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    
+    // Para cada célula, calcula o centro e desenha o número
+    for (let i = 0; i < numPoints; i++) {
+      const currentPoint = points[i];
+      const nextPoint = points[(i + 1) % numPoints];
+      const prevPoint = points[(i - 1 + numPoints) % numPoints];
+      
+      // Calcula a direção perpendicular baseada na bissetriz
+      const prevDirection = {
+        x: currentPoint.x - prevPoint.x,
+        y: currentPoint.y - prevPoint.y
+      };
+      const nextDirection = {
+        x: nextPoint.x - currentPoint.x,
+        y: nextPoint.y - currentPoint.y
+      };
+      
+      // Normaliza as direções
+      const prevLength = Math.sqrt(prevDirection.x * prevDirection.x + prevDirection.y * prevDirection.y);
+      const nextLength = Math.sqrt(nextDirection.x * nextDirection.x + nextDirection.y * nextDirection.y);
+      
+      prevDirection.x /= prevLength;
+      prevDirection.y /= prevLength;
+      nextDirection.x /= nextLength;
+      nextDirection.y /= nextLength;
+      
+      // Calcula a bissetriz
+      const bisector = {
+        x: (prevDirection.x + nextDirection.x) / 2,
+        y: (prevDirection.y + nextDirection.y) / 2
+      };
+      
+      // Normaliza a bissetriz
+      const bisectorLength = Math.sqrt(bisector.x * bisector.x + bisector.y * bisector.y);
+      if (bisectorLength > 0) {
+        bisector.x /= bisectorLength;
+        bisector.y /= bisectorLength;
+      }
+      
+      // Calcula o perpendicular à bissetriz (direção para o centro da célula)
+      const perpendicular = {
+        x: bisector.y,
+        y: -bisector.x
+      };
+      
+      // Usa o currentPoint como base e adiciona um offset para o centro da célula
+      const offset = this.cellWidth * 0.5; // Metade da largura da célula
+      const centerX = currentPoint.x + perpendicular.x * offset;
+      const centerY = currentPoint.y + perpendicular.y * offset;
+      
+      // Desenha o número da célula
+      ctx.fillText(i.toString(), centerX, centerY);
+    }
   }
 
   // Desenha as linhas perpendiculares nos pontos médios das curvas de fronteira
@@ -172,17 +304,23 @@ export class MiddleBoundaryRenderer {
     ctx.stroke();
   }
 
-  render(outerPoints) {
-    // 1. Desenha as linhas perpendiculares
+  render(outerPoints, outerMostPoints = null) {
+    // 1. Renderiza o preenchimento das células se outerMostPoints for fornecido
+    if (outerMostPoints) {
+      this.renderCellBackground(outerPoints, outerMostPoints);
+      this.renderCellNumbers(outerPoints, outerMostPoints);
+    }
+    
+    // 2. Desenha as linhas perpendiculares
     this.renderPerpendicularLines(outerPoints);
     
-    // 2. Calcula os pontos finais das linhas perpendiculares
-    const outerMostPoints = this.calculatePerpendicularLinesEndPoints(outerPoints);
+    // 3. Calcula os pontos finais das linhas perpendiculares
+    const calculatedOuterMostPoints = this.calculatePerpendicularLinesEndPoints(outerPoints);
     
-    // 3. Desenha as curvas de fronteira
-    this.renderBoundaryLines(outerMostPoints, outerPoints);
+    // 4. Desenha as curvas de fronteira
+    this.renderBoundaryLines(calculatedOuterMostPoints, outerPoints);
 
     // Retorna os pontos da curva de fronteira para uso pela próxima faixa
-    return outerMostPoints;
+    return calculatedOuterMostPoints;
   }
 } 

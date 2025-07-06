@@ -18,11 +18,6 @@ export class DirectionalGenerator {
       3 * Math.PI / 2,     // Baixo
       7 * Math.PI / 4      // Diagonal inferior direita
     ];
-    
-    // Opções de movimento (relativas à direção atual)
-    this.TURN_LEFT = -Math.PI / 4;   // -45 graus
-    this.GO_STRAIGHT = 0;            // 0 graus
-    this.TURN_RIGHT = Math.PI / 4;   // +45 graus
   }
   
   // Gerador de números aleatórios com seed
@@ -104,11 +99,17 @@ export class DirectionalGenerator {
   
   // Verifica se uma sequência de movimentos criaria um loop fechado
   wouldCreateTightLoop(path, consecutiveTurns, direction) {
-    if (consecutiveTurns < 5) return false; // Precisa de pelo menos 5 curvas seguidas
+    // Para curvas à esquerda, é mais rigoroso (contra o sentido clockwise)
+    const maxLeftTurns = 4;  // Mais rigoroso para esquerda
+    const maxRightTurns = 6; // Mais permissivo para direita
     
-    // Se estiver fazendo muitas curvas na mesma direção, pode criar um loop
-    if (consecutiveTurns >= 6) { // Reduzi de 7 para 6
-      console.log(`❌ Loop detectado: ${consecutiveTurns} curvas ${direction} consecutivas`);
+    if (direction === 'left' && consecutiveTurns >= maxLeftTurns) {
+      console.log(`❌ Loop esquerda detectado: ${consecutiveTurns} curvas consecutivas (limite: ${maxLeftTurns})`);
+      return true;
+    }
+    
+    if (direction === 'right' && consecutiveTurns >= maxRightTurns) {
+      console.log(`❌ Loop direita detectado: ${consecutiveTurns} curvas consecutivas (limite: ${maxRightTurns})`);
       return true;
     }
     
@@ -149,8 +150,10 @@ export class DirectionalGenerator {
   }
   
   // Gera a fase de exploração (saída)
-  generateExplorationPhase(startPoint, initialDirection, stepSize, explorationSteps, straightStartSteps = 3) {
+  generateExplorationPhase(startPoint, initialDirection, stepSize, explorationSteps, straightStartSteps, leftTurnAngle, rightTurnAngle) {
     console.log(`🚀 Iniciando fase de exploração (${explorationSteps} passos, ${straightStartSteps} retos iniciais)`);
+    console.log(`   - Ângulo esquerda: ${Math.round(leftTurnAngle * 180 / Math.PI)}°`);
+    console.log(`   - Ângulo direita: ${Math.round(rightTurnAngle * 180 / Math.PI)}°`);
     
     const path = [startPoint];
     let currentDirection = initialDirection;
@@ -170,10 +173,15 @@ export class DirectionalGenerator {
     
     // Restante dos passos de exploração (após os passos retos iniciais)
     for (let step = straightStartSteps + 1; step <= explorationSteps; step++) {
+      // Pesos baseados nos ângulos - direita mais favorecida por ser mais agressiva
+      const leftWeight = 1;
+      const straightWeight = 4; // Aumentei um pouco
+      const rightWeight = 2;    // Favorece direita por ser clockwise
+      
       const moveOptions = [
-        { direction: currentDirection + this.TURN_LEFT, type: 'left', weight: 1 },
-        { direction: currentDirection + this.GO_STRAIGHT, type: 'straight', weight: 3 },
-        { direction: currentDirection + this.TURN_RIGHT, type: 'right', weight: 1 }
+        { direction: currentDirection - leftTurnAngle, type: 'left', weight: leftWeight },   // Negativo para esquerda
+        { direction: currentDirection, type: 'straight', weight: straightWeight },
+        { direction: currentDirection + rightTurnAngle, type: 'right', weight: rightWeight } // Positivo para direita
       ];
       
       // Normaliza as direções
@@ -181,14 +189,14 @@ export class DirectionalGenerator {
         option.direction = this.normalizeAngle(option.direction);
       });
       
-      // Ajusta pesos baseado em curvas consecutivas
-      if (consecutiveLeftTurns >= 3) {
-        moveOptions[0].weight = 0.5; // Reduz peso de virar à esquerda
-        moveOptions[2].weight = 2;   // Aumenta peso de virar à direita
+      // Ajusta pesos baseado em curvas consecutivas (mais rigoroso para esquerda)
+      if (consecutiveLeftTurns >= 2) { // Mais rigoroso para esquerda
+        moveOptions[0].weight = 0.3; // Reduz muito o peso de virar à esquerda
+        moveOptions[2].weight = 3;   // Aumenta muito o peso de virar à direita
       }
-      if (consecutiveRightTurns >= 3) {
-        moveOptions[2].weight = 0.5; // Reduz peso de virar à direita
-        moveOptions[0].weight = 2;   // Aumenta peso de virar à esquerda
+      if (consecutiveRightTurns >= 4) { // Mais permissivo para direita
+        moveOptions[2].weight = 0.7; // Reduz peso de virar à direita
+        moveOptions[0].weight = 1.5; // Aumenta peso de virar à esquerda
       }
       
       // Seleciona uma opção válida
@@ -226,8 +234,8 @@ export class DirectionalGenerator {
         if (selectedOption === null) {
           // Aumenta peso de ir reto se não encontrou opção válida
           moveOptions[1].weight += 1;
-          moveOptions[0].weight = Math.max(0.1, moveOptions[0].weight * 0.7);
-          moveOptions[2].weight = Math.max(0.1, moveOptions[2].weight * 0.7);
+          moveOptions[0].weight = Math.max(0.1, moveOptions[0].weight * 0.6);
+          moveOptions[2].weight = Math.max(0.1, moveOptions[2].weight * 0.8);
         }
       }
       
@@ -265,7 +273,7 @@ export class DirectionalGenerator {
   }
   
   // Gera a fase de retorno (sempre clockwise)
-  generateReturnPhase(explorationPath, finalDirection, stepSize, startPoint) {
+  generateReturnPhase(explorationPath, finalDirection, stepSize, startPoint, leftTurnAngle, rightTurnAngle) {
     console.log(`🔄 Iniciando fase de retorno (clockwise)`);
     
     const path = [...explorationPath];
@@ -290,10 +298,11 @@ export class DirectionalGenerator {
       const distanceToStart = this.distance(currentPoint, startPoint);
       
       // Opções de movimento priorizando sentido horário (clockwise)
+      // Na volta, prioriza ainda mais a direita
       const moveOptions = [
-        { direction: currentDirection + this.TURN_RIGHT, type: 'right', weight: 3 }, // Prioriza direita
-        { direction: currentDirection + this.GO_STRAIGHT, type: 'straight', weight: 2 },
-        { direction: currentDirection + this.TURN_LEFT, type: 'left', weight: 1 }
+        { direction: currentDirection - leftTurnAngle, type: 'left', weight: 0.5 },   // Peso baixo para esquerda
+        { direction: currentDirection, type: 'straight', weight: 2 },
+        { direction: currentDirection + rightTurnAngle, type: 'right', weight: 4 }    // Peso alto para direita (clockwise)
       ];
       
       // Normaliza as direções
@@ -311,14 +320,14 @@ export class DirectionalGenerator {
         if (Math.abs(angleDiff) < Math.PI / 4) {
           moveOptions[1].weight = 5; // Prioriza ir reto
         } else if (angleDiff > 0) {
-          moveOptions[0].weight = 4; // Prioriza direita
+          moveOptions[2].weight = 5; // Prioriza direita
         } else {
-          moveOptions[2].weight = 4; // Prioriza esquerda
+          moveOptions[0].weight = 3; // Prioriza esquerda (mas ainda menos que direita)
         }
       } else {
         // Se está longe, prioriza virar à direita (clockwise)
         if (angleDiff > 0) {
-          moveOptions[0].weight = 4; // Aumenta peso de virar à direita
+          moveOptions[2].weight = 5; // Aumenta muito o peso de virar à direita
         }
       }
       
@@ -403,6 +412,8 @@ export class DirectionalGenerator {
       stepSize = 100, // Tamanho do passo (distância entre pontos)
       explorationSteps = 10, // Número de passos de exploração
       straightStartSteps = 4, // Número de passos retos iniciais (área de largada)
+      leftTurnAngle = 35 * Math.PI / 180,  // 35 graus para esquerda (mais suave)
+      rightTurnAngle = 75 * Math.PI / 180, // 75 graus para direita (mais agressivo)
       initialDirection = null // Direção inicial (null = aleatória)
     } = options;
     
@@ -429,7 +440,9 @@ export class DirectionalGenerator {
       selectedDirection, 
       stepSize, 
       explorationSteps,
-      straightStartSteps
+      straightStartSteps,
+      leftTurnAngle,
+      rightTurnAngle
     );
     
     // Fase de retorno
@@ -437,7 +450,9 @@ export class DirectionalGenerator {
       explorationResult.path,
       explorationResult.finalDirection,
       stepSize,
-      startPoint
+      startPoint,
+      leftTurnAngle,
+      rightTurnAngle
     );
     
     console.log(`📊 Pista completa gerada com ${completePath.length} pontos`);

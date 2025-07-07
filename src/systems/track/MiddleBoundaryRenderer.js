@@ -23,7 +23,7 @@ export class MiddleBoundaryRenderer {
     if (!currentCellBoundary || !nextCellBoundary) return;
     
     // Define a cor de preenchimento para a célula específica
-    ctx.fillStyle = "rgba(0, 255, 0, 0.3)"; // Cor verde temporária para teste
+    ctx.fillStyle = "rgba(0, 255, 0, 0.2)"; // Cor verde temporária para teste
     
     // Calcula a linha perpendicular correspondente da roxa boundary
     const currentRoxaPoint = roxaPoints[cellIndex];

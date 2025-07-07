@@ -8,6 +8,54 @@ export class InnerBoundaryRenderer {
     this.cellWidth = cellWidth;
   }
 
+  // Renderiza o preenchimento das células usando as linhas centrais azuis
+  renderCellBackgroundWithBasePoints(baseBoundaryLinesData, cellIndex, azulPoints, centralPoints) {
+    const ctx = this.ctx;
+    
+    // Para a primeira faixa, cada célula corresponde diretamente a uma célula da linha central
+    const currentCellBoundary = baseBoundaryLinesData[cellIndex];
+    
+    if (!currentCellBoundary) return;
+    
+    // Define a cor de preenchimento para a célula específica
+    ctx.fillStyle = "rgba(0, 0, 255, 0.2)"; // Cor azul temporária para teste
+    
+    // Calcula a linha perpendicular correspondente da azul boundary
+    const currentAzulPoint = azulPoints[cellIndex];
+    const nextAzulPoint = azulPoints[(cellIndex + 1) % azulPoints.length];
+    
+    // Calcula os pontos de controle para a curva da azul boundary
+    const prevAzulPoint = azulPoints[(cellIndex - 1 + azulPoints.length) % azulPoints.length];
+    const nextNextAzulPoint = azulPoints[(cellIndex + 2) % azulPoints.length];
+    const azulControlPoints = TrackHelper.calculateControlPoints(currentAzulPoint, nextAzulPoint, prevAzulPoint, nextNextAzulPoint);
+    
+    // Calcula pontos ao longo da curva da azul boundary
+    const azulCurvePoints = this.calculateBezierCurvePoints(
+      currentAzulPoint, azulControlPoints.cp1, azulControlPoints.cp2, nextAzulPoint, 15
+    );
+    
+    // Desenha o polígono da célula usando uma linha central completa + linha azul
+    ctx.beginPath();
+    
+    // 1. Desenha a linha central completa da célula atual
+    ctx.moveTo(currentCellBoundary[0].x, currentCellBoundary[0].y);
+    for (let i = 1; i < currentCellBoundary.length; i++) {
+      ctx.lineTo(currentCellBoundary[i].x, currentCellBoundary[i].y);
+    }
+    
+    // 2. Conecta com a linha azul da inner boundary
+    ctx.lineTo(azulCurvePoints[azulCurvePoints.length - 1].x, azulCurvePoints[azulCurvePoints.length - 1].y);
+    
+    // 3. Desenha a linha azul da inner boundary (de volta)
+    for (let i = azulCurvePoints.length - 2; i >= 0; i--) {
+      ctx.lineTo(azulCurvePoints[i].x, azulCurvePoints[i].y);
+    }
+    
+    // 4. Fecha o polígono
+    ctx.closePath();
+    ctx.fill();
+  }
+
   // Calcula múltiplos pontos ao longo de uma curva de Bézier
   calculateBezierCurvePoints(p0, cp1, cp2, p1, numPoints = 20) {
     const points = [];
@@ -139,22 +187,29 @@ export class InnerBoundaryRenderer {
     ctx.stroke();
   }
 
-  render(points, outerPoints = null) {
-    // 1. Renderiza o preenchimento das células se outerPoints for fornecido
+  render(points, outerPoints = null, baseBoundaryLinesData = null) {
+    // 1. Primeiro calcula os pontos finais das linhas perpendiculares (azul boundary)
+    const calculatedOuterPoints = this.calculatePerpendicularLinesEndPoints(points);
+    
+    // 2. Renderiza o preenchimento das células usando as linhas centrais azuis do base
+    if (baseBoundaryLinesData) {
+      for (let i = 0; i < baseBoundaryLinesData.length; i++) {
+        this.renderCellBackgroundWithBasePoints(baseBoundaryLinesData, i, calculatedOuterPoints, points);
+      }
+    }
+    
+    // 3. Renderiza o preenchimento das células se outerPoints for fornecido
     if (outerPoints) {
       this.renderCellNumbers(points, outerPoints);
     }
     
-    // 2. Desenha as linhas perpendiculares
+    // 4. Desenha as linhas perpendiculares
     this.renderPerpendicularLines(points);
     
-    // 3. Calcula os pontos finais das linhas perpendiculares
-    const calculatedOuterPoints = this.calculatePerpendicularLinesEndPoints(points);
-    
-    // 4. Desenha a curva de fronteira
+    // 5. Desenha a curva de fronteira
     this.renderBoundaryLines(calculatedOuterPoints);
 
-    // 5. Calcula os pontos das linhas azuis para cada célula
+    // 6. Calcula os pontos das linhas azuis para cada célula
     const boundaryLinesData = [];
     for (let i = 0; i < calculatedOuterPoints.length; i++) {
       boundaryLinesData.push(this.calculateCellBoundaryPoints(calculatedOuterPoints, i));

@@ -33,7 +33,7 @@ export class OuterBoundaryRenderer {
     if (!currentCellBoundary || !nextCellBoundary) return;
     
     // Define a cor de preenchimento para a célula específica
-    ctx.fillStyle = "rgba(255, 0, 0, 0.3)"; // Cor temporária para teste
+    ctx.fillStyle = "rgba(255, 0, 0, 0.2)"; // Cor temporária para teste
     
     // Calcula a linha perpendicular correspondente da outer boundary (cinza)
     const currentOuterPoint = finalBoundaryPoints[cellIndex];

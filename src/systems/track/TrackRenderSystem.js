@@ -35,11 +35,13 @@ export class TrackRenderSystem {
     const middlePoints = this.middleBoundaryRenderer.calculatePerpendicularLinesEndPoints(innerPoints);
     const outerPoints = this.outerBoundaryRenderer.calculatePerpendicularLinesEndPoints(middlePoints, innerPoints);
 
-    // Desenha apenas a linha base para as celulas
-    this.baseTrackRenderer.render(points);
+    // Desenha a linha base e extrai os dados das linhas centrais
+    const baseRenderResult = this.baseTrackRenderer.render(points);
+    const baseBoundaryLinesData = baseRenderResult.boundaryLinesData || [];
 
-    // Desenha a primeira faixa (usando a base para finalizar a primeira faixa das celulas)
-    const innerRenderResult = this.innerBoundaryRenderer.render(points, innerPoints);
+    // Desenha a primeira faixa (entre linha central e inner boundary)
+    // Passa as informações das linhas centrais para o InnerBoundaryRenderer
+    const innerRenderResult = this.innerBoundaryRenderer.render(points, innerPoints, baseBoundaryLinesData);
     
     // Extrai os dados das linhas azuis do resultado do render
     const innerBoundaryLinesData = innerRenderResult.boundaryLinesData || [];

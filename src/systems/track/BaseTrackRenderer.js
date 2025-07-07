@@ -16,6 +16,25 @@ export class BaseTrackRenderer {
     return points;
   }
 
+  // Calcula os pontos da linha central azul (boundary) para uma célula específica
+  calculateCellBoundaryPoints(points, cellIndex, numPointsPerCell = 20) {
+    const point = points[cellIndex];
+    const nextPoint = points[(cellIndex + 1) % points.length];
+    const prevPoint = points[(cellIndex - 1 + points.length) % points.length];
+    const nextNextPoint = points[(cellIndex + 2) % points.length];
+    
+    const controlPoints = TrackHelper.calculateControlPoints(point, nextPoint, prevPoint, nextNextPoint);
+    
+    // Calcula múltiplos pontos ao longo da curva de Bézier
+    const boundaryPoints = [];
+    for (let i = 0; i <= numPointsPerCell; i++) {
+      const t = i / numPointsPerCell;
+      boundaryPoints.push(TrackHelper.calculateBezierPoint(point, controlPoints.cp1, controlPoints.cp2, nextPoint, t));
+    }
+    
+    return boundaryPoints;
+  }
+
   // Desenha a linha central azul
   renderCentralLine(points) {
     const ctx = this.ctx;
@@ -70,12 +89,22 @@ export class BaseTrackRenderer {
   }
 
   render(points, outerPoints = null) {
-
-    
-    // 2. Desenha a linha central azul
+    // 1. Desenha a linha central azul
     this.renderCentralLine(points);
     
-    // 3. Desenha os pontos vermelhos numerados
+    // 2. Desenha os pontos vermelhos numerados
     this.renderTrackPoints(points);
+
+    // 3. Calcula os pontos das linhas centrais azuis para cada célula
+    const boundaryLinesData = [];
+    for (let i = 0; i < points.length; i++) {
+      boundaryLinesData.push(this.calculateCellBoundaryPoints(points, i));
+    }
+
+    // Retorna os pontos da linha central E os dados das linhas azuis para uso pela próxima faixa
+    return {
+      boundaryPoints: points,
+      boundaryLinesData: boundaryLinesData
+    };
   }
 } 

@@ -39,10 +39,14 @@ export class TrackRenderSystem {
     this.baseTrackRenderer.render(points);
 
     // Desenha a primeira faixa (usando a base para finalizar a primeira faixa das celulas)
-    this.innerBoundaryRenderer.render(points, innerPoints);
+    const innerRenderResult = this.innerBoundaryRenderer.render(points, innerPoints);
+    
+    // Extrai os dados das linhas azuis do resultado do render
+    const innerBoundaryLinesData = innerRenderResult.boundaryLinesData || [];
 
     // Desenha a segunda faixa (entre inner boundary e middle boundary)
-    const middleRenderResult = this.middleBoundaryRenderer.render(innerPoints, middlePoints);
+    // Passa as informações das linhas azuis para o MiddleBoundaryRenderer
+    const middleRenderResult = this.middleBoundaryRenderer.render(innerPoints, middlePoints, innerBoundaryLinesData);
     
     // Extrai os dados das linhas roxas do resultado do render
     const middleBoundaryLinesData = middleRenderResult.boundaryLinesData || [];

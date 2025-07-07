@@ -88,6 +88,25 @@ export class InnerBoundaryRenderer {
     });
   }
 
+  // Calcula os pontos da linha azul (boundary) para uma célula específica
+  calculateCellBoundaryPoints(azulPoints, cellIndex, numPointsPerCell = 20) {
+    const point = azulPoints[cellIndex];
+    const nextPoint = azulPoints[(cellIndex + 1) % azulPoints.length];
+    const prevPoint = azulPoints[(cellIndex - 1 + azulPoints.length) % azulPoints.length];
+    const nextNextPoint = azulPoints[(cellIndex + 2) % azulPoints.length];
+    
+    const controlPoints = TrackHelper.calculateControlPoints(point, nextPoint, prevPoint, nextNextPoint);
+    
+    // Calcula múltiplos pontos ao longo da curva de Bézier
+    const boundaryPoints = [];
+    for (let i = 0; i <= numPointsPerCell; i++) {
+      const t = i / numPointsPerCell;
+      boundaryPoints.push(TrackHelper.calculateBezierPoint(point, controlPoints.cp1, controlPoints.cp2, nextPoint, t));
+    }
+    
+    return boundaryPoints;
+  }
+
   // Desenha a curva de fronteira conectando os pontos finais das linhas perpendiculares
   renderBoundaryLines(outerPoints) {
     const ctx = this.ctx;
@@ -135,7 +154,16 @@ export class InnerBoundaryRenderer {
     // 4. Desenha a curva de fronteira
     this.renderBoundaryLines(calculatedOuterPoints);
 
-    // Retorna os pontos da curva de fronteira para uso pela próxima faixa
-    return calculatedOuterPoints;
+    // 5. Calcula os pontos das linhas azuis para cada célula
+    const boundaryLinesData = [];
+    for (let i = 0; i < calculatedOuterPoints.length; i++) {
+      boundaryLinesData.push(this.calculateCellBoundaryPoints(calculatedOuterPoints, i));
+    }
+
+    // Retorna os pontos da curva de fronteira E os dados das linhas azuis para uso pela próxima faixa
+    return {
+      boundaryPoints: calculatedOuterPoints,
+      boundaryLinesData: boundaryLinesData
+    };
   }
 } 

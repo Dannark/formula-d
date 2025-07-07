@@ -17,63 +17,6 @@ export class MiddleBoundaryRenderer {
     return points;
   }
 
-  // Renderiza o preenchimento das células da terceira faixa
-  renderCellBackground(points, outerPoints) {
-    const ctx = this.ctx;
-    const numPoints = points.length;
-    
-    // Define a cor de preenchimento para a terceira faixa
-    ctx.fillStyle = "rgba(255, 192, 203, 0.3)"; // nunca use trackColorConfig.getColor aqui
-    
-    // Para cada célula, cria um polígono e preenche
-    for (let i = 0; i < numPoints; i++) {
-      const currentPoint = points[i];
-      const nextPoint = points[(i + 1) % numPoints];
-      const currentOuterPoint = outerPoints[i];
-      const nextOuterPoint = outerPoints[(i + 1) % numPoints];
-      
-      // Calcula os pontos de controle para as curvas
-      const prevPoint = points[(i - 1 + numPoints) % numPoints];
-      const nextNextPoint = points[(i + 2) % numPoints];
-      const innerControlPoints = TrackHelper.calculateControlPoints(currentPoint, nextPoint, prevPoint, nextNextPoint);
-      
-      const prevOuterPoint = outerPoints[(i - 1 + numPoints) % numPoints];
-      const nextNextOuterPoint = outerPoints[(i + 2) % numPoints];
-      const outerControlPoints = TrackHelper.calculateControlPoints(currentOuterPoint, nextOuterPoint, prevOuterPoint, nextNextOuterPoint);
-      
-      // Calcula pontos ao longo da curva interna
-      const innerCurvePoints = this.calculateBezierCurvePoints(
-        currentPoint, innerControlPoints.cp1, innerControlPoints.cp2, nextPoint, 15
-      );
-      
-      // Calcula pontos ao longo da curva externa
-      const outerCurvePoints = this.calculateBezierCurvePoints(
-        currentOuterPoint, outerControlPoints.cp1, outerControlPoints.cp2, nextOuterPoint, 15
-      );
-      
-      // Desenha o polígono da célula
-      ctx.beginPath();
-      
-      // Desenha a curva interna (da direita para a esquerda)
-      ctx.moveTo(innerCurvePoints[0].x, innerCurvePoints[0].y);
-      for (let j = 1; j < innerCurvePoints.length; j++) {
-        ctx.lineTo(innerCurvePoints[j].x, innerCurvePoints[j].y);
-      }
-      
-      // Conecta com a curva externa
-      ctx.lineTo(outerCurvePoints[outerCurvePoints.length - 1].x, outerCurvePoints[outerCurvePoints.length - 1].y);
-      
-      // Desenha a curva externa (da esquerda para a direita)
-      for (let j = outerCurvePoints.length - 2; j >= 0; j--) {
-        ctx.lineTo(outerCurvePoints[j].x, outerCurvePoints[j].y);
-      }
-      
-      // Fecha o polígono
-      ctx.closePath();
-      ctx.fill();
-    }
-  }
-
   // Renderiza os números das células no centro
   renderCellNumbers(points, outerPoints) {
     const ctx = this.ctx;
@@ -202,6 +145,102 @@ export class MiddleBoundaryRenderer {
     });
   }
 
+  // Calcula os pontos de controle para uma curva de boundary específica
+  calculateBoundaryCurveControlPoints(point, nextPoint, outerPoints, cellIndex) {
+    // Encontra os pontos originais (na linha azul) correspondentes
+    const origPoint = outerPoints[cellIndex];
+    const origNextPoint = outerPoints[(cellIndex + 1) % outerPoints.length];
+
+    // Calcula os vetores das linhas perpendiculares
+    const perpendicularVector1 = {
+      x: point.x - origPoint.x,
+      y: point.y - origPoint.y
+    };
+    const perpendicularVector2 = {
+      x: nextPoint.x - origNextPoint.x,
+      y: nextPoint.y - origNextPoint.y
+    };
+
+    // Normaliza os vetores
+    const length1 = Math.sqrt(perpendicularVector1.x * perpendicularVector1.x + perpendicularVector1.y * perpendicularVector1.y);
+    const length2 = Math.sqrt(perpendicularVector2.x * perpendicularVector2.x + perpendicularVector2.y * perpendicularVector2.y);
+    
+    perpendicularVector1.x /= length1;
+    perpendicularVector1.y /= length1;
+    perpendicularVector2.x /= length2;
+    perpendicularVector2.y /= length2;
+
+    // Calcula o ângulo entre as linhas perpendiculares
+    const dotProduct = perpendicularVector1.x * perpendicularVector2.x + perpendicularVector1.y * perpendicularVector2.y;
+    const angle = Math.acos(Math.min(1, Math.max(-1, dotProduct)));
+    
+    // Determina a direção da curva usando o produto vetorial
+    const crossProduct = perpendicularVector1.x * perpendicularVector2.y - perpendicularVector1.y * perpendicularVector2.x;
+    const curveDirection = -Math.sign(crossProduct);
+    
+    // Calcula a direção do segmento atual
+    const direction = {
+      x: nextPoint.x - point.x,
+      y: nextPoint.y - point.y
+    };
+    const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
+    direction.x /= length;
+    direction.y /= length;
+
+    // Calcula o vetor perpendicular
+    const perpendicular = {
+      x: -direction.y,
+      y: direction.x
+    };
+
+    // Ajusta o offset baseado no ângulo entre as linhas perpendiculares
+    const angleFactor = Math.sin(angle / 2);
+    
+    // Fatores adaptativos baseados na curvatura
+    const curvatureIntensity = Math.pow(angleFactor, 1);
+    const basePerpendicularFactor = 0.1;
+    const maxPerpendicularFactor = 0.8;
+    const baseControlFactor = 0.25;
+    const maxControlFactor = 0.5;
+    
+    // Interpola os fatores baseado na curvatura
+    const perpendicularFactor = basePerpendicularFactor + (maxPerpendicularFactor - basePerpendicularFactor) * curvatureIntensity;
+    const controlFactor = baseControlFactor + (maxControlFactor - baseControlFactor) * curvatureIntensity;
+    
+    const perpendicularOffset = length * perpendicularFactor * angleFactor * curveDirection;
+    const controlDistance = length * controlFactor;
+
+    const cp1 = {
+      x: point.x + direction.x * controlDistance + perpendicular.x * perpendicularOffset,
+      y: point.y + direction.y * controlDistance + perpendicular.y * perpendicularOffset
+    };
+    
+    const cp2 = {
+      x: nextPoint.x - direction.x * controlDistance + perpendicular.x * perpendicularOffset,
+      y: nextPoint.y - direction.y * controlDistance + perpendicular.y * perpendicularOffset
+    };
+
+    return { cp1, cp2 };
+  }
+
+  // Calcula os pontos da linha roxa (boundary) para uma célula específica
+  calculateCellBoundaryPoints(roxaPoints, cellIndex, outerPoints, numPointsPerCell = 20) {
+    const point = roxaPoints[cellIndex];
+    const nextPoint = roxaPoints[(cellIndex + 1) % roxaPoints.length];
+    
+    // Usa a função comum para calcular os pontos de controle
+    const { cp1, cp2 } = this.calculateBoundaryCurveControlPoints(point, nextPoint, outerPoints, cellIndex);
+
+    // Calcula múltiplos pontos ao longo da curva de Bézier
+    const boundaryPoints = [];
+    for (let i = 0; i <= numPointsPerCell; i++) {
+      const t = i / numPointsPerCell;
+      boundaryPoints.push(TrackHelper.calculateBezierPoint(point, cp1, cp2, nextPoint, t));
+    }
+    
+    return boundaryPoints;
+  }
+
   // Desenha as curvas de fronteira conectando os pontos finais das linhas perpendiculares
   renderBoundaryLines(outerMostPoints, outerPoints) {
     const ctx = this.ctx;
@@ -217,79 +256,8 @@ export class MiddleBoundaryRenderer {
       const prevPoint = outerMostPoints[(index - 1 + outerMostPoints.length) % outerMostPoints.length];
       const nextPoint = outerMostPoints[(index + 1) % outerMostPoints.length];
       
-      // Encontra os pontos originais (na linha preta) correspondentes
-      const origPoint = outerPoints[index];
-      const origPrevPoint = outerPoints[(index - 1 + outerPoints.length) % outerPoints.length];
-      const origNextPoint = outerPoints[(index + 1) % outerPoints.length];
-
-      // Calcula os vetores das linhas perpendiculares
-      const perpendicularVector1 = {
-        x: point.x - origPoint.x,
-        y: point.y - origPoint.y
-      };
-      const perpendicularVector2 = {
-        x: nextPoint.x - origNextPoint.x,
-        y: nextPoint.y - origNextPoint.y
-      };
-
-      // Normaliza os vetores
-      const length1 = Math.sqrt(perpendicularVector1.x * perpendicularVector1.x + perpendicularVector1.y * perpendicularVector1.y);
-      const length2 = Math.sqrt(perpendicularVector2.x * perpendicularVector2.x + perpendicularVector2.y * perpendicularVector2.y);
-      
-      perpendicularVector1.x /= length1;
-      perpendicularVector1.y /= length1;
-      perpendicularVector2.x /= length2;
-      perpendicularVector2.y /= length2;
-
-      // Calcula o ângulo entre as linhas perpendiculares
-      const dotProduct = perpendicularVector1.x * perpendicularVector2.x + perpendicularVector1.y * perpendicularVector2.y;
-      const angle = Math.acos(Math.min(1, Math.max(-1, dotProduct)));
-      
-      // Determina a direção da curva usando o produto vetorial
-      const crossProduct = perpendicularVector1.x * perpendicularVector2.y - perpendicularVector1.y * perpendicularVector2.x;
-      const curveDirection = -Math.sign(crossProduct); // Invertido para corresponder à direção desejada
-      
-      // Calcula a direção do segmento atual
-      const direction = {
-        x: nextPoint.x - point.x,
-        y: nextPoint.y - point.y
-      };
-      const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
-      direction.x /= length;
-      direction.y /= length;
-
-      // Calcula o vetor perpendicular
-      const perpendicular = {
-        x: -direction.y,
-        y: direction.x
-      };
-
-      // Ajusta o offset baseado no ângulo entre as linhas perpendiculares
-      const angleFactor = Math.sin(angle / 2); // 0 para linhas paralelas, 1 para ângulo de 180°
-      
-      // Fatores adaptativos baseados na curvatura
-      const curvatureIntensity = Math.pow(angleFactor, 1); // Suaviza a transição
-      const basePerpendicularFactor = 0.1;
-      const maxPerpendicularFactor = 0.8;
-      const baseControlFactor = 0.25;
-      const maxControlFactor = 0.5;
-      
-      // Interpola os fatores baseado na curvatura
-      const perpendicularFactor = basePerpendicularFactor + (maxPerpendicularFactor - basePerpendicularFactor) * curvatureIntensity;
-      const controlFactor = baseControlFactor + (maxControlFactor - baseControlFactor) * curvatureIntensity;
-      
-      const perpendicularOffset = length * perpendicularFactor * angleFactor * curveDirection;
-      const controlDistance = length * controlFactor;
-
-      const cp1 = {
-        x: point.x + direction.x * controlDistance + perpendicular.x * perpendicularOffset,
-        y: point.y + direction.y * controlDistance + perpendicular.y * perpendicularOffset
-      };
-      
-      const cp2 = {
-        x: nextPoint.x - direction.x * controlDistance + perpendicular.x * perpendicularOffset,
-        y: nextPoint.y - direction.y * controlDistance + perpendicular.y * perpendicularOffset
-      };
+      // Usa a função comum para calcular os pontos de controle
+      const { cp1, cp2 } = this.calculateBoundaryCurveControlPoints(point, nextPoint, outerPoints, index);
 
       ctx.bezierCurveTo(
         cp1.x,
@@ -307,7 +275,6 @@ export class MiddleBoundaryRenderer {
   render(outerPoints, outerMostPoints = null) {
     // 1. Renderiza o preenchimento das células se outerMostPoints for fornecido
     if (outerMostPoints) {
-      this.renderCellBackground(outerPoints, outerMostPoints);
       this.renderCellNumbers(outerPoints, outerMostPoints);
     }
     
@@ -320,7 +287,16 @@ export class MiddleBoundaryRenderer {
     // 4. Desenha as curvas de fronteira
     this.renderBoundaryLines(calculatedOuterMostPoints, outerPoints);
 
-    // Retorna os pontos da curva de fronteira para uso pela próxima faixa
-    return calculatedOuterMostPoints;
+    // 5. Calcula os pontos das linhas roxas para cada célula usando os pontos da linha roxa
+    const boundaryLinesData = [];
+    for (let i = 0; i < calculatedOuterMostPoints.length; i++) {
+      boundaryLinesData.push(this.calculateCellBoundaryPoints(calculatedOuterMostPoints, i, outerPoints));
+    }
+
+    // Retorna os pontos da curva de fronteira E os dados das linhas roxas para uso pela próxima faixa
+    return {
+      boundaryPoints: calculatedOuterMostPoints,
+      boundaryLinesData: boundaryLinesData
+    };
   }
 } 

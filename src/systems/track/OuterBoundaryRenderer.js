@@ -17,6 +17,69 @@ export class OuterBoundaryRenderer {
     return points;
   }
 
+  // Renderiza o preenchimento das células usando as linhas roxas do middle boundary
+  renderCellBackgroundWithMiddleBoundaries(middleBoundaryLinesData, cellIndex, finalBoundaryPoints, middleBoundaryPoints) {
+    // if (cellIndex !== 0) return; // Por enquanto, processa apenas a célula 0
+    
+    const ctx = this.ctx;
+    
+    // Para o efeito "brick/tijolo", precisamos da célula atual e da próxima
+    const currentCellIndex = cellIndex;
+    const nextCellIndex = (cellIndex + 1) % middleBoundaryLinesData.length;
+    
+    const currentCellBoundary = middleBoundaryLinesData[currentCellIndex];  // Célula 0 (atual)
+    const nextCellBoundary = middleBoundaryLinesData[nextCellIndex];  // Célula 1 (próxima)
+    
+    if (!currentCellBoundary || !nextCellBoundary) return;
+    
+    // Define a cor de preenchimento para a célula específica
+    ctx.fillStyle = "rgba(255, 0, 0, 0.3)"; // Cor temporária para teste
+    
+    // Calcula a linha perpendicular correspondente da outer boundary (cinza)
+    const currentOuterPoint = finalBoundaryPoints[cellIndex];
+    const nextOuterPoint = finalBoundaryPoints[(cellIndex + 1) % finalBoundaryPoints.length];
+    
+    // Calcula os pontos de controle para a curva da outer boundary
+    const prevOuterPoint = finalBoundaryPoints[(cellIndex - 1 + finalBoundaryPoints.length) % finalBoundaryPoints.length];
+    const nextNextOuterPoint = finalBoundaryPoints[(cellIndex + 2) % finalBoundaryPoints.length];
+    const outerControlPoints = TrackHelper.calculateControlPoints(currentOuterPoint, nextOuterPoint, prevOuterPoint, nextNextOuterPoint);
+    
+    // Calcula pontos ao longo da curva da outer boundary
+    const outerCurvePoints = this.calculateBezierCurvePoints(
+      currentOuterPoint, outerControlPoints.cp1, outerControlPoints.cp2, nextOuterPoint, 15
+    );
+    
+    // Calcula os pontos para o efeito "brick/tijolo"
+    const midPointCurrent = Math.floor(currentCellBoundary.length / 2);
+    const midPointNext = Math.floor(nextCellBoundary.length / 2);
+    
+    // Desenha o polígono da célula usando metade de cada linha roxa + linha cinza
+    ctx.beginPath();
+    
+    // 1. Desenha a primeira metade da linha roxa da célula atual (célula 0)
+    ctx.moveTo(currentCellBoundary[midPointCurrent].x, currentCellBoundary[midPointCurrent].y);
+    for (let i = midPointCurrent + 1; i < currentCellBoundary.length; i++) {
+      ctx.lineTo(currentCellBoundary[i].x, currentCellBoundary[i].y);
+    }
+    
+    // 2. Desenha a segunda metade da linha roxa da próxima célula (célula 1)
+    for (let i = 0; i <= midPointNext; i++) {
+      ctx.lineTo(nextCellBoundary[i].x, nextCellBoundary[i].y);
+    }
+    
+    // 3. Conecta com a linha cinza da outer boundary
+    ctx.lineTo(outerCurvePoints[outerCurvePoints.length - 1].x, outerCurvePoints[outerCurvePoints.length - 1].y);
+    
+    // 4. Desenha a linha cinza da outer boundary (de volta)
+    for (let i = outerCurvePoints.length - 2; i >= 0; i--) {
+      ctx.lineTo(outerCurvePoints[i].x, outerCurvePoints[i].y);
+    }
+    
+    // 5. Fecha o polígono
+    ctx.closePath();
+    ctx.fill();
+  }
+
   // Renderiza o preenchimento das células da quarta faixa
   renderCellBackground(points, outerPoints) {
     const ctx = this.ctx;
@@ -538,23 +601,29 @@ export class OuterBoundaryRenderer {
     ctx.stroke();
   }
 
-  render(outerMostPoints, outerPoints, finalBoundaryPoints = null) {
-    // 1. Renderiza o preenchimento das células se finalBoundaryPoints for fornecido
+  render(outerMostPoints, outerPoints, finalBoundaryPoints = null, middleBoundaryLinesData = null) {
+    // 1. Primeiro calcula os pontos finais das linhas perpendiculares (outer boundary)
+    const calculatedFinalBoundaryPoints = this.calculatePerpendicularLinesEndPoints(outerMostPoints, outerPoints);
+    
+    // 2. Renderiza o preenchimento das células usando as linhas roxas do middle boundary
+    if (middleBoundaryLinesData) {
+      for (let i = 0; i < middleBoundaryLinesData.length; i++) {
+        this.renderCellBackgroundWithMiddleBoundaries(middleBoundaryLinesData, i, calculatedFinalBoundaryPoints, outerMostPoints);
+      }
+    }
+    
+    // 3. Renderiza o preenchimento das células se finalBoundaryPoints for fornecido
     if (finalBoundaryPoints) {
-      this.renderCellBackground(outerMostPoints, finalBoundaryPoints);
       this.renderCellNumbers(outerMostPoints, finalBoundaryPoints);
     }
     
-    // 2. Desenha as linhas perpendiculares
+    // 4. Desenha as linhas perpendiculares
     this.renderPerpendicularLines(outerMostPoints, outerPoints);
     
-    // 3. Calcula os pontos finais das linhas perpendiculares
-    const calculatedFinalBoundaryPoints = this.calculatePerpendicularLinesEndPoints(outerMostPoints, outerPoints);
-    
-    // 4. Desenha as curvas de fronteira
+    // 5. Desenha as curvas de fronteira
     this.renderBoundaryLines(calculatedFinalBoundaryPoints);
     
-    // 5. Desenha as linhas perpendiculares adicionais para células grandes
+    // 6. Desenha as linhas perpendiculares adicionais para células grandes
     this.renderAdditionalPerpendicularLines(calculatedFinalBoundaryPoints);
     
     // Retorna os pontos finais para uso posterior

@@ -18,62 +18,6 @@ export class InnerBoundaryRenderer {
     return points;
   }
 
-  // Renderiza o preenchimento das células da segunda faixa
-  renderCellBackground(points, outerPoints) {
-    const ctx = this.ctx;
-    const numPoints = points.length;
-    
-    // Define a cor de preenchimento para a segunda faixa
-    ctx.fillStyle = "rgba(144, 238, 144, 0.3)"; // nunca use trackColorConfig.getColor aqui
-    
-    // Para cada célula, cria um polígono e preenche
-    for (let i = 0; i < numPoints; i++) {
-      const currentPoint = points[i];
-      const nextPoint = points[(i + 1) % numPoints];
-      const currentOuterPoint = outerPoints[i];
-      const nextOuterPoint = outerPoints[(i + 1) % numPoints];
-      
-      // Calcula os pontos de controle para as curvas
-      const prevPoint = points[(i - 1 + numPoints) % numPoints];
-      const nextNextPoint = points[(i + 2) % numPoints];
-      const innerControlPoints = TrackHelper.calculateControlPoints(currentPoint, nextPoint, prevPoint, nextNextPoint);
-      
-      const prevOuterPoint = outerPoints[(i - 1 + numPoints) % numPoints];
-      const nextNextOuterPoint = outerPoints[(i + 2) % numPoints];
-      const outerControlPoints = TrackHelper.calculateControlPoints(currentOuterPoint, nextOuterPoint, prevOuterPoint, nextNextOuterPoint);
-      
-      // Calcula pontos ao longo da curva interna
-      const innerCurvePoints = this.calculateBezierCurvePoints(
-        currentPoint, innerControlPoints.cp1, innerControlPoints.cp2, nextPoint, 15
-      );
-      
-      // Calcula pontos ao longo da curva externa
-      const outerCurvePoints = this.calculateBezierCurvePoints(
-        currentOuterPoint, outerControlPoints.cp1, outerControlPoints.cp2, nextOuterPoint, 15
-      );
-      
-      // Desenha o polígono da célula
-      ctx.beginPath();
-      
-      // Desenha a curva interna (da direita para a esquerda)
-      ctx.moveTo(innerCurvePoints[0].x, innerCurvePoints[0].y);
-      for (let j = 1; j < innerCurvePoints.length; j++) {
-        ctx.lineTo(innerCurvePoints[j].x, innerCurvePoints[j].y);
-      }
-      
-      // Conecta com a curva externa
-      ctx.lineTo(outerCurvePoints[outerCurvePoints.length - 1].x, outerCurvePoints[outerCurvePoints.length - 1].y);
-      
-      // Desenha a curva externa (da esquerda para a direita)
-      for (let j = outerCurvePoints.length - 2; j >= 0; j--) {
-        ctx.lineTo(outerCurvePoints[j].x, outerCurvePoints[j].y);
-      }
-      
-      // Fecha o polígono
-      ctx.closePath();
-      ctx.fill();
-    }
-  }
 
   // Renderiza os números das células no centro
   renderCellNumbers(points, outerPoints) {
@@ -179,7 +123,6 @@ export class InnerBoundaryRenderer {
   render(points, outerPoints = null) {
     // 1. Renderiza o preenchimento das células se outerPoints for fornecido
     if (outerPoints) {
-      this.renderCellBackground(points, outerPoints);
       this.renderCellNumbers(points, outerPoints);
     }
     

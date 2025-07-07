@@ -1,7 +1,7 @@
 export class TrackColorConfig {
   constructor() {
     // Configuração global de cores
-    this.useUniformColor = true; // true = cor única, false = cores específicas
+    this.useUniformColor = false; // true = cor única, false = cores específicas
     this.uniformColor = "gray"; // cor única quando ativada
   }
 

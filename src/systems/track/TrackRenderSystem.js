@@ -35,18 +35,21 @@ export class TrackRenderSystem {
     const middlePoints = this.middleBoundaryRenderer.calculatePerpendicularLinesEndPoints(innerPoints);
     const outerPoints = this.outerBoundaryRenderer.calculatePerpendicularLinesEndPoints(middlePoints, innerPoints);
 
-    // Segunda passagem: desenha as células com preenchimento e depois as linhas
-    // Desenha apenas a linha central (sem células)
+    // Desenha apenas a linha base para as celulas
     this.baseTrackRenderer.render(points);
 
-    // Desenha a segunda faixa (entre linha central e inner boundary)
+    // Desenha a primeira faixa (usando a base para finalizar a primeira faixa das celulas)
     this.innerBoundaryRenderer.render(points, innerPoints);
 
-    // Desenha a terceira faixa (entre inner boundary e middle boundary)
-    this.middleBoundaryRenderer.render(innerPoints, middlePoints);
+    // Desenha a segunda faixa (entre inner boundary e middle boundary)
+    const middleRenderResult = this.middleBoundaryRenderer.render(innerPoints, middlePoints);
+    
+    // Extrai os dados das linhas roxas do resultado do render
+    const middleBoundaryLinesData = middleRenderResult.boundaryLinesData || [];
 
-    // Desenha a quarta faixa (entre middle boundary e outer boundary)
-    this.outerBoundaryRenderer.render(middlePoints, innerPoints, outerPoints);
+    // Desenha a terceira faixa (entre middle boundary e outer boundary)
+    // Passa as informações das linhas roxas para o OuterBoundaryRenderer
+    this.outerBoundaryRenderer.render(middlePoints, innerPoints, outerPoints, middleBoundaryLinesData);
   }
 }
 

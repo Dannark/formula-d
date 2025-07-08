@@ -11,8 +11,10 @@ import { MovementSystem } from "../systems/MovementSystem.js";
 import { TrackRenderSystem } from "../systems/track/TrackRenderSystem.js";
 import { GridRenderSystem } from "../systems/GridRenderSystem.js";
 import { CameraControlSystem } from "../systems/CameraControlSystem.js";
+import { CellInteractionSystem } from "../systems/CellInteractionSystem.js";
 import { trackConfig, updateTrackPoints, adjustTrackPoints } from "../config/trackPoints.js";
 import { registerTrackEntity } from "../debug/TrackDebug.js";
+import { TrackHelper } from "../systems/track/TrackHelper.js";
 
 export class MainScene extends Scene {
   constructor(canvas) {
@@ -42,7 +44,7 @@ export class MainScene extends Scene {
           const dy = point.y - worldCoords.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
 
-          if (dist < minDist && dist < 20) { // 20px de tolerância para selecionar
+          if (dist < minDist && dist < 15) { // 15px de tolerância para selecionar (reduzido para evitar conflito)
             minDist = dist;
             closestPointIndex = index;
           }
@@ -51,6 +53,10 @@ export class MainScene extends Scene {
         if (closestPointIndex !== -1) {
           this.isDragging = true;
           this.selectedPointIndex = closestPointIndex;
+          // Desabilita temporariamente o sistema de interação com células
+          if (this.cellInteractionSystem) {
+            this.cellInteractionSystem.setEnabled(false);
+          }
         }
       }
     });
@@ -102,8 +108,11 @@ export class MainScene extends Scene {
         this.isDragging = false;
         this.selectedPointIndex = -1;
         
-        // Log da lista atualizada de pontos
-        console.log("Pontos atualizados:", JSON.stringify(trackConfig.points, null, 2));
+        // Reabilita o sistema de interação com células
+        if (this.cellInteractionSystem) {
+          this.cellInteractionSystem.setEnabled(true);
+        }
+        
       }
     });
   }
@@ -129,6 +138,9 @@ export class MainScene extends Scene {
     this.world.addSystem(new GridRenderSystem(this.canvas));
     // 4. Sistema de render da pista
     this.world.addSystem(new TrackRenderSystem(this.canvas));
+    // 5. Sistema de interação com células
+    this.cellInteractionSystem = new CellInteractionSystem(this.canvas);
+    this.world.addSystem(this.cellInteractionSystem);
 
     // Cria a entidade da grid
     const gridEntity = new Entity().addComponent(new Grid(20, 1, "#E0E0E0"));
@@ -143,12 +155,13 @@ export class MainScene extends Scene {
     
     // Registra a entidade no sistema de debug
     registerTrackEntity(trackEntity);
-    // console.log(
-    //   "Entidade da pista criada com",
-    //   trackConfig.points.length,
-    //   "pontos"
-    // );
-
+    
+    console.log(
+      "Entidade da pista criada com",
+      trackConfig.points.length,
+      "pontos"
+    );
+    
     // Atualiza os pontos da pista quando a janela é redimensionada
     window.addEventListener("resize", () => {
       console.log("Janela redimensionada, atualizando pontos");

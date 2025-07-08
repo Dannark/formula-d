@@ -147,4 +147,264 @@ export class TrackHelper {
       }
     };
   }
+
+  // Inicializa os dados das células da pista
+  static initializeTrackCells(points) {
+    const numCells = points.length;
+    
+    const createCellList = (type) => {
+      return Array.from({ length: numCells }, (_, index) => ({
+        index: index,
+        centerX: 0,         // Será atualizado durante o render
+        centerY: 0,         // Será atualizado durante o render
+        occupiedBy: 0,      // 0 = livre, >0 = ID do jogador
+        curveAngle: 0,      // Ângulo da curva, será calculado durante o render
+        type: type          // Tipo da faixa para referência
+      }));
+    };
+    
+    return {
+      inner: createCellList('inner'),
+      middle: createCellList('middle'),
+      outer: createCellList('outer')
+    };
+  }
+
+  // Calcula o ângulo da curva em um ponto específico
+  static calculateCurveAngle(p0, cp1, cp2, p1, t = 0.5) {
+    // Calcula a tangente no ponto
+    const tangent = this.calculateBezierTangent(p0, cp1, cp2, p1, t);
+    
+    // Calcula o ângulo em radianos
+    const angle = Math.atan2(tangent.y, tangent.x);
+    
+    return angle;
+  }
+
+  // Atualiza os dados da célula com polígono e bounds
+  static updateCellDataWithBounds(cell, centerX, centerY, curveAngle, boundaryPoints) {
+    cell.centerX = centerX;
+    cell.centerY = centerY;
+    cell.curveAngle = curveAngle;
+    cell.boundaryPoints = boundaryPoints;
+    
+    // Calcula o bounding box
+    if (boundaryPoints && boundaryPoints.length > 0) {
+      let minX = boundaryPoints[0].x;
+      let maxX = boundaryPoints[0].x;
+      let minY = boundaryPoints[0].y;
+      let maxY = boundaryPoints[0].y;
+      
+      for (const point of boundaryPoints) {
+        minX = Math.min(minX, point.x);
+        maxX = Math.max(maxX, point.x);
+        minY = Math.min(minY, point.y);
+        maxY = Math.max(maxY, point.y);
+      }
+      
+      cell.bounds = {
+        left: minX,
+        right: maxX,
+        top: minY,
+        bottom: maxY,
+        width: maxX - minX,
+        height: maxY - minY
+      };
+
+    } else {
+      console.warn(`⚠️ Célula ${cell.type}[${cell.index}]: sem pontos de boundary!`);
+      cell.bounds = null;
+    }
+  }
+
+  // Função de compatibilidade (para código legado)
+  static updateCellData(cell, centerX, centerY, curveAngle) {
+    // Chama a nova função sem boundary points
+    this.updateCellDataWithBounds(cell, centerX, centerY, curveAngle, null);
+  }
+
+  // Verifica se um ponto está dentro de um polígono usando ray casting
+  static isPointInPolygon(point, polygon) {
+    if (!polygon || polygon.length < 3) return false;
+    
+    let inside = false;
+    const x = point.x;
+    const y = point.y;
+    
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x;
+      const yi = polygon[i].y;
+      const xj = polygon[j].x;
+      const yj = polygon[j].y;
+      
+      // Verifica se o raio horizontal cruza a aresta
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    
+    return inside;
+  }
+
+  // Verifica se um ponto está dentro dos bounds (otimização antes do point-in-polygon)
+  static isPointInBounds(x, y, bounds) {
+    return bounds && 
+           x >= bounds.left && 
+           x <= bounds.right && 
+           y >= bounds.top && 
+           y <= bounds.bottom;
+  }
+
+  // Busca a célula que contém o ponto exato (não apenas proximidade)
+  static findCellContainingPoint(trackCells, x, y) {
+    // Verifica cada tipo de célula
+    for (const type of ['inner', 'middle', 'outer']) {
+      const cells = trackCells[type];
+      
+      for (const cell of cells) {
+        // Primeira verificação: bounding box (mais rápida)
+        if (cell.bounds && !this.isPointInBounds(x, y, cell.bounds)) {
+          continue;
+        }
+        
+        // Segunda verificação: dentro do polígono da célula
+        if (cell.boundaryPoints && this.isPointInPolygon({ x, y }, cell.boundaryPoints)) {
+          return { cell, type, exactMatch: true };
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  // Função fallback: busca célula mais próxima (apenas para debug)
+  static findNearestCellFallback(trackCells, x, y, maxDistance = 30) {
+    let nearestCell = null;
+    let nearestDistance = Infinity;
+    let nearestType = null;
+    
+    // Busca em todas as faixas
+    ['inner', 'middle', 'outer'].forEach(type => {
+      const cells = trackCells[type];
+      
+      cells.forEach((cell, index) => {
+        // Só verifica células com posições válidas
+        if (cell.centerX !== undefined && cell.centerY !== undefined && cell.centerX !== 0 && cell.centerY !== 0) {
+          const distance = Math.sqrt(
+            Math.pow(cell.centerX - x, 2) + Math.pow(cell.centerY - y, 2)
+          );
+          
+          if (distance < nearestDistance && distance <= maxDistance) {
+            nearestDistance = distance;
+            nearestCell = cell;
+            nearestType = type;
+          }
+        }
+      });
+    });
+    
+    return nearestCell ? { cell: nearestCell, type: nearestType, distance: nearestDistance, exactMatch: false } : null;
+  }
+
+  // Busca a célula mais próxima de uma posição específica (mantida para compatibilidade)
+  static findNearestCell(trackCells, x, y, maxDistance = 50) {
+    // Primeira tentativa: busca célula que contém exatamente o ponto
+    const exactMatch = this.findCellContainingPoint(trackCells, x, y);
+    if (exactMatch) {
+      console.log(`🎯 Clique exato na célula ${exactMatch.type}[${exactMatch.cell.index}]`);
+      return exactMatch;
+    }
+    
+    // Fallback: busca por proximidade (com distância menor)
+    const nearestMatch = this.findNearestCellFallback(trackCells, x, y, 20);
+    if (nearestMatch) {
+      console.log(`📍 Clique próximo à célula ${nearestMatch.type}[${nearestMatch.cell.index}] (${nearestMatch.distance.toFixed(1)}px)`);
+      return nearestMatch;
+    }
+    
+    return null;
+  }
+
+  // Verifica se uma célula está livre para ocupação
+  static isCellFree(cell) {
+    return cell.occupiedBy === 0;
+  }
+
+  // Ocupa uma célula com o ID do jogador
+  static occupyCell(cell, playerId) {
+    if (this.isCellFree(cell)) {
+      cell.occupiedBy = playerId;
+      return true;
+    }
+    return false;
+  }
+
+  // Libera uma célula
+  static freeCell(cell) {
+    cell.occupiedBy = 0;
+  }
+
+  // Busca células ocupadas por um jogador específico
+  static getCellsByPlayer(trackCells, playerId) {
+    const playerCells = [];
+    
+    ['inner', 'middle', 'outer'].forEach(type => {
+      trackCells[type].forEach(cell => {
+        if (cell.occupiedBy === playerId) {
+          playerCells.push({ cell, type });
+        }
+      });
+    });
+    
+    return playerCells;
+  }
+
+  // Busca células em um raio específico a partir de uma célula
+  static getCellsInRadius(trackCells, centerCell, radius = 2) {
+    const cellsInRadius = [];
+    const centerIndex = centerCell.index;
+    
+    ['inner', 'middle', 'outer'].forEach(type => {
+      for (let i = -radius; i <= radius; i++) {
+        const index = (centerIndex + i + trackCells[type].length) % trackCells[type].length;
+        if (index !== centerIndex) {
+          cellsInRadius.push({ cell: trackCells[type][index], type });
+        }
+      }
+    });
+    
+    return cellsInRadius;
+  }
+
+  // Converte ângulo de radianos para graus
+  static radiansToDegrees(radians) {
+    return radians * (180 / Math.PI);
+  }
+
+  // Obtém estatísticas das células
+  static getCellStatistics(trackCells) {
+    const stats = {
+      total: 0,
+      occupied: 0,
+      free: 0,
+      byType: {}
+    };
+    
+    ['inner', 'middle', 'outer'].forEach(type => {
+      const cells = trackCells[type];
+      const typeStats = {
+        total: cells.length,
+        occupied: cells.filter(cell => cell.occupiedBy > 0).length,
+        free: cells.filter(cell => cell.occupiedBy === 0).length
+      };
+      
+      stats.byType[type] = typeStats;
+      stats.total += typeStats.total;
+      stats.occupied += typeStats.occupied;
+      stats.free += typeStats.free;
+    });
+    
+    return stats;
+  }
+
 } 

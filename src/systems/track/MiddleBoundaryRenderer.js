@@ -94,6 +94,7 @@ export class MiddleBoundaryRenderer {
       const currentPoint = points[i];
       const nextPoint = points[(i + 1) % numPoints];
       const prevPoint = points[(i - 1 + numPoints) % numPoints];
+      const nextNextPoint = points[(i + 2) % numPoints];
       
       // Calcula a direção perpendicular baseada na bissetriz
       const prevDirection = {
@@ -126,17 +127,22 @@ export class MiddleBoundaryRenderer {
         bisector.x /= bisectorLength;
         bisector.y /= bisectorLength;
       }
+
+      // const controlPoints = TrackHelper.calculateControlPoints(currentPoint, nextPoint, prevPoint, nextNextPoint);
+      const { cp1, cp2 } = this.calculateBoundaryCurveControlPoints(currentPoint, nextPoint, outerPoints, i);
+      const midPoint = TrackHelper.calculateBezierPoint(currentPoint, cp1, cp2, nextPoint, 0.5);
+      const tangent = TrackHelper.calculateBezierTangent(currentPoint, cp1, cp2, nextPoint, 0.5);
       
       // Calcula o perpendicular à bissetriz (direção para o centro da célula)
       const perpendicular = {
-        x: bisector.y,
-        y: -bisector.x
+        x: -tangent.y,
+        y: tangent.x
       };
       
       // Usa o currentPoint como base e adiciona um offset para o centro da célula
       const offset = this.cellWidth * 0.5; // Metade da largura da célula
-      const centerX = currentPoint.x + perpendicular.x * offset;
-      const centerY = currentPoint.y + perpendicular.y * offset;
+      const centerX = midPoint.x + perpendicular.x * offset;
+      const centerY = midPoint.y + perpendicular.y * offset;
       
       // Desenha o número da célula
       ctx.fillText(i.toString(), centerX, centerY);
@@ -346,7 +352,7 @@ export class MiddleBoundaryRenderer {
     
     // 3. Renderiza o preenchimento das células se outerMostPoints for fornecido
     if (outerMostPoints) {
-      this.renderCellNumbers(outerPoints, outerMostPoints);
+      this.renderCellNumbers(calculatedOuterMostPoints, outerPoints);
     }
     
     // 4. Desenha as linhas perpendiculares
@@ -367,4 +373,4 @@ export class MiddleBoundaryRenderer {
       boundaryLinesData: boundaryLinesData
     };
   }
-} 
+}

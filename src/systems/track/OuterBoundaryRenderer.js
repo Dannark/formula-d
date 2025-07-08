@@ -113,11 +113,10 @@ export class OuterBoundaryRenderer {
         y: tangent.x
       };
       
-      const currentPoint_base = points[i];
       // Usa o midPoint como base e adiciona um offset para o centro da célula amarela
       const offset = this.cellWidth * 0.5; // Metade da largura da célula
-      const centerX = currentPoint.x - perpendicular.x * offset;
-      const centerY = currentPoint.y - perpendicular.y * offset;
+      const centerX = midPoint.x + perpendicular.x * offset;
+      const centerY = midPoint.y + perpendicular.y * offset;
       
       // Desenha o número da célula
       ctx.fillText(i.toString(), centerX, centerY);
@@ -557,7 +556,7 @@ export class OuterBoundaryRenderer {
     
     // 3. Renderiza o preenchimento das células se finalBoundaryPoints for fornecido
     if (finalBoundaryPoints) {
-      this.renderCellNumbers(outerMostPoints, finalBoundaryPoints);
+      this.renderCellNumbers(calculatedFinalBoundaryPoints, finalBoundaryPoints);
     }
     
     // 4. Desenha as linhas perpendiculares

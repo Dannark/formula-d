@@ -6,12 +6,16 @@ import { Velocity } from "../components/Velocity.js";
 import { Track } from "../components/Track.js";
 import { Grid } from "../components/Grid.js";
 import { Camera } from "../components/Camera.js";
+import { Player } from "../components/Player.js";
+import { Dice } from "../components/Dice.js";
 import { RenderSystem } from "../systems/RenderSystem.js";
 import { MovementSystem } from "../systems/MovementSystem.js";
 import { TrackRenderSystem } from "../systems/track/TrackRenderSystem.js";
 import { GridRenderSystem } from "../systems/GridRenderSystem.js";
 import { CameraControlSystem } from "../systems/CameraControlSystem.js";
 import { CellInteractionSystem } from "../systems/CellInteractionSystem.js";
+import { PlayerRenderSystem } from "../systems/PlayerRenderSystem.js";
+import { DiceSystem } from "../systems/DiceSystem.js";
 import { trackConfig, updateTrackPoints, adjustTrackPoints } from "../config/trackPoints.js";
 import { registerTrackEntity } from "../debug/TrackDebug.js";
 import { TrackHelper } from "../systems/track/TrackHelper.js";
@@ -117,6 +121,8 @@ export class MainScene extends Scene {
     });
   }
 
+  // Método update removido - não precisa mais de lógica especial
+
   load() {
     // console.log("Carregando MainScene");
     // console.log("Track config:", trackConfig);
@@ -138,7 +144,12 @@ export class MainScene extends Scene {
     this.world.addSystem(new GridRenderSystem(this.canvas));
     // 4. Sistema de render da pista
     this.world.addSystem(new TrackRenderSystem(this.canvas));
-    // 5. Sistema de interação com células
+    // 5. Sistema de render do jogador
+    this.world.addSystem(new PlayerRenderSystem(this.canvas));
+    // 6. Sistema do dado
+    const diceSystem = new DiceSystem(this.canvas);
+    this.world.addSystem(diceSystem);
+    // 7. Sistema de interação com células
     this.cellInteractionSystem = new CellInteractionSystem(this.canvas);
     this.world.addSystem(this.cellInteractionSystem);
 
@@ -161,6 +172,20 @@ export class MainScene extends Scene {
       trackConfig.points.length,
       "pontos"
     );
+    
+    // Cria a entidade do jogador
+    const playerEntity = new Entity().addComponent(
+      new Player(0, "inner", 0, "#FF0000", 1) // Inicia na célula 0 da faixa interna, apontando para a direita
+    );
+    this.world.addEntity(playerEntity);
+    console.log("🏎️ Jogador criado na célula 0 (faixa interna)");
+    
+    // Cria a entidade do dado
+    const diceEntity = new Entity().addComponent(
+      new Dice(1, false, 6) // Dado de 6 faces, valor inicial 1
+    );
+    this.world.addEntity(diceEntity);
+    console.log("🎲 Dado criado - Pressione ESPAÇO para rolar!");
     
     // Atualiza os pontos da pista quando a janela é redimensionada
     window.addEventListener("resize", () => {

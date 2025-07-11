@@ -77,25 +77,26 @@ export class TrackRenderSystem {
       const prevPoint = basePoints[(i - 1 + numPoints) % numPoints];
       const nextNextPoint = basePoints[(i + 2) % numPoints];
       
-      // Calcula os pontos de controle para a curva
+      // Calcula os pontos de controle para a curva da linha central
       const controlPoints = TrackHelper.calculateControlPoints(currentPoint, nextPoint, prevPoint, nextNextPoint);
       
-      // Calcula o ponto médio da curva (centro da célula)
-      const midPoint = TrackHelper.calculateBezierPoint(currentPoint, controlPoints.cp1, controlPoints.cp2, nextPoint, 0.5);
+      // Calcula o ponto médio da curva da linha central (t = 0.5)
+      const midPointBase = TrackHelper.calculateBezierPoint(currentPoint, controlPoints.cp1, controlPoints.cp2, nextPoint, 0.5);
       
-      // Calcula a tangente no ponto médio
-      const tangent = TrackHelper.calculateBezierTangent(currentPoint, controlPoints.cp1, controlPoints.cp2, nextPoint, 0.5);
+      // Calcula os pontos de controle para a curva da linha azul
+      const currentInner = innerPoints[i];
+      const nextInner = innerPoints[(i + 1) % numPoints];
+      const prevInner = innerPoints[(i - 1 + numPoints) % numPoints];
+      const nextNextInner = innerPoints[(i + 2) % numPoints];
       
-      // Calcula o vetor perpendicular à tangente (direção para fora da pista)
-      const perpendicular = {
-        x: -tangent.y,
-        y: tangent.x
-      };
+      const innerControlPoints = TrackHelper.calculateControlPoints(currentInner, nextInner, prevInner, nextNextInner);
       
-      // Posiciona o centro da célula azul
-      const offset = 30; // Metade da largura da célula (60/2)
-      const centerX = midPoint.x + perpendicular.x * offset;
-      const centerY = midPoint.y + perpendicular.y * offset;
+      // Calcula o ponto médio da curva da linha azul (t = 0.5)
+      const midPointInner = TrackHelper.calculateBezierPoint(currentInner, innerControlPoints.cp1, innerControlPoints.cp2, nextInner, 0.5);
+      
+      // Calcula o centro real da célula como o ponto médio entre as duas boundaries
+      const centerX = (midPointBase.x + midPointInner.x) / 2;
+      const centerY = (midPointBase.y + midPointInner.y) / 2;
       
       // Calcula o ângulo da curva
       const curveAngle = TrackHelper.calculateCurveAngle(currentPoint, controlPoints.cp1, controlPoints.cp2, nextPoint, 0.5);
@@ -118,25 +119,26 @@ export class TrackRenderSystem {
       const prevPoint = innerPoints[(i - 1 + numPoints) % numPoints];
       const nextNextPoint = innerPoints[(i + 2) % numPoints];
       
-      // Calcula os pontos de controle para a curva
+      // Calcula os pontos de controle para a curva da linha azul (inner)
       const controlPoints = TrackHelper.calculateControlPoints(currentPoint, nextPoint, prevPoint, nextNextPoint);
       
-      // Calcula o ponto médio da curva (centro da célula)
-      const midPoint = TrackHelper.calculateBezierPoint(currentPoint, controlPoints.cp1, controlPoints.cp2, nextPoint, 0.5);
+      // Calcula o ponto médio da curva da linha azul (t = 0.5)
+      const midPointInner = TrackHelper.calculateBezierPoint(currentPoint, controlPoints.cp1, controlPoints.cp2, nextPoint, 0.5);
       
-      // Calcula a tangente no ponto médio
-      const tangent = TrackHelper.calculateBezierTangent(currentPoint, controlPoints.cp1, controlPoints.cp2, nextPoint, 0.5);
+      // Calcula os pontos de controle para a curva da linha roxa (middle)
+      const currentMiddle = middlePoints[i];
+      const nextMiddle = middlePoints[(i + 1) % numPoints];
+      const prevMiddle = middlePoints[(i - 1 + numPoints) % numPoints];
+      const nextNextMiddle = middlePoints[(i + 2) % numPoints];
       
-      // Calcula o vetor perpendicular à tangente (direção para fora da pista)
-      const perpendicular = {
-        x: -tangent.y,
-        y: tangent.x
-      };
+      const middleControlPoints = TrackHelper.calculateControlPoints(currentMiddle, nextMiddle, prevMiddle, nextNextMiddle);
       
-      // Posiciona o centro da célula verde
-      const offset = 30; // Metade da largura da célula (60/2)
-      const centerX = midPoint.x + perpendicular.x * offset;
-      const centerY = midPoint.y + perpendicular.y * offset;
+      // Calcula o ponto médio da curva da linha roxa (t = 0.5)
+      const midPointMiddle = TrackHelper.calculateBezierPoint(currentMiddle, middleControlPoints.cp1, middleControlPoints.cp2, nextMiddle, 0.5);
+      
+      // Calcula o centro real da célula como o ponto médio entre as duas boundaries
+      const centerX = (midPointInner.x + midPointMiddle.x) / 2;
+      const centerY = (midPointInner.y + midPointMiddle.y) / 2;
       
       // Calcula o ângulo da curva
       const curveAngle = TrackHelper.calculateCurveAngle(currentPoint, controlPoints.cp1, controlPoints.cp2, nextPoint, 0.5);
@@ -159,25 +161,26 @@ export class TrackRenderSystem {
       const prevPoint = middlePoints[(i - 1 + numPoints) % numPoints];
       const nextNextPoint = middlePoints[(i + 2) % numPoints];
       
-      // Calcula os pontos de controle para a curva
+      // Calcula os pontos de controle para a curva da linha roxa (middle)
       const controlPoints = TrackHelper.calculateControlPoints(currentPoint, nextPoint, prevPoint, nextNextPoint);
       
-      // Calcula o ponto médio da curva (centro da célula)
-      const midPoint = TrackHelper.calculateBezierPoint(currentPoint, controlPoints.cp1, controlPoints.cp2, nextPoint, 0.5);
+      // Calcula o ponto médio da curva da linha roxa (t = 0.5)
+      const midPointMiddle = TrackHelper.calculateBezierPoint(currentPoint, controlPoints.cp1, controlPoints.cp2, nextPoint, 0.5);
       
-      // Calcula a tangente no ponto médio
-      const tangent = TrackHelper.calculateBezierTangent(currentPoint, controlPoints.cp1, controlPoints.cp2, nextPoint, 0.5);
+      // Calcula os pontos de controle para a curva da linha externa (outer)
+      const currentOuter = outerPoints[i];
+      const nextOuter = outerPoints[(i + 1) % numPoints];
+      const prevOuter = outerPoints[(i - 1 + numPoints) % numPoints];
+      const nextNextOuter = outerPoints[(i + 2) % numPoints];
       
-      // Calcula o vetor perpendicular à tangente (direção para fora da pista)
-      const perpendicular = {
-        x: -tangent.y,
-        y: tangent.x
-      };
+      const outerControlPoints = TrackHelper.calculateControlPoints(currentOuter, nextOuter, prevOuter, nextNextOuter);
       
-      // Posiciona o centro da célula outer
-      const offset = 30; // Metade da largura da célula (60/2)
-      const centerX = midPoint.x + perpendicular.x * offset;
-      const centerY = midPoint.y + perpendicular.y * offset;
+      // Calcula o ponto médio da curva da linha externa (t = 0.5)
+      const midPointOuter = TrackHelper.calculateBezierPoint(currentOuter, outerControlPoints.cp1, outerControlPoints.cp2, nextOuter, 0.5);
+      
+      // Calcula o centro real da célula como o ponto médio entre as duas boundaries
+      const centerX = (midPointMiddle.x + midPointOuter.x) / 2;
+      const centerY = (midPointMiddle.y + midPointOuter.y) / 2;
       
       // Calcula o ângulo da curva
       const curveAngle = TrackHelper.calculateCurveAngle(currentPoint, controlPoints.cp1, controlPoints.cp2, nextPoint, 0.5);

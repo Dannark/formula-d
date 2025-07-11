@@ -17,6 +17,14 @@
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
+  <script>
+    // Função para rolar o dado do jogo Formula D
+    window.rollDice = function() {
+      return Math.floor(Math.random() * 6) + 1;
+    };
+    
+    console.log("🎲 window.rollDice criada - Pressione ESPAÇO para jogar!");
+  </script>
   <script type="module" src="./index.js"></script>
 </body>
 </html> 

@@ -18,7 +18,7 @@ export class OuterBoundaryRenderer {
   }
 
   // Renderiza o preenchimento das células usando as linhas roxas do middle boundary
-  renderCellBackgroundWithMiddleBoundaries(middleBoundaryLinesData, cellIndex, finalBoundaryPoints, middleBoundaryPoints) {
+  renderCellBackgroundWithMiddleBoundaries(middleBoundaryLinesData, cellIndex, finalBoundaryPoints, middleBoundaryPoints, selectedCellId = null) {
     // if (cellIndex !== 0) return; // Por enquanto, processa apenas a célula 0
     
     const ctx = this.ctx;
@@ -32,8 +32,17 @@ export class OuterBoundaryRenderer {
     
     if (!currentCellBoundary || !nextCellBoundary) return;
     
+    // Verifica se esta célula está selecionada
+    const isSelected = selectedCellId && 
+                      selectedCellId.type === 'outer' && 
+                      selectedCellId.index === cellIndex;
+    
     // Define a cor de preenchimento para a célula específica
-    ctx.fillStyle = "rgba(255, 0, 0, 0.2)"; // Cor temporária para teste
+    if (isSelected) {
+      ctx.fillStyle = "rgba(255, 255, 0, 0.6)"; // Cor amarela brilhante para célula selecionada
+    } else {
+      ctx.fillStyle = ctx.fillStyle = trackColorConfig.useUniformColor ? "rgba(210, 210, 210, 1)" : "rgba(255, 0, 0, 0.2)"; // Cor vermelha normal
+    }
     
     // Calcula a linha perpendicular correspondente da outer boundary (cinza)
     const currentOuterPoint = finalBoundaryPoints[cellIndex];
@@ -78,6 +87,13 @@ export class OuterBoundaryRenderer {
     // 5. Fecha o polígono
     ctx.closePath();
     ctx.fill();
+    
+    // Adiciona borda extra se selecionada
+    if (isSelected) {
+      ctx.strokeStyle = "rgba(255, 215, 0, 0.8)"; // Cor dourada para a borda
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
   }
   // Renderiza os números das células no centro
   renderCellNumbers(points, outerPoints) {
@@ -543,14 +559,14 @@ export class OuterBoundaryRenderer {
     ctx.stroke();
   }
 
-  render(outerMostPoints, outerPoints, finalBoundaryPoints = null, middleBoundaryLinesData = null) {
+  render(outerMostPoints, outerPoints, finalBoundaryPoints = null, middleBoundaryLinesData = null, selectedCellId = null) {
     // 1. Primeiro calcula os pontos finais das linhas perpendiculares (outer boundary)
     const calculatedFinalBoundaryPoints = this.calculatePerpendicularLinesEndPoints(outerMostPoints, outerPoints);
     
     // 2. Renderiza o preenchimento das células usando as linhas roxas do middle boundary
     if (middleBoundaryLinesData) {
       for (let i = 0; i < middleBoundaryLinesData.length; i++) {
-        this.renderCellBackgroundWithMiddleBoundaries(middleBoundaryLinesData, i, calculatedFinalBoundaryPoints, outerMostPoints);
+        this.renderCellBackgroundWithMiddleBoundaries(middleBoundaryLinesData, i, calculatedFinalBoundaryPoints, outerMostPoints, selectedCellId);
       }
     }
     

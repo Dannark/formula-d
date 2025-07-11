@@ -62,6 +62,9 @@ export class CellInteractionSystem {
     const matchType = exactMatch ? "🎯 CLIQUE EXATO" : "📍 CLIQUE PRÓXIMO";
     const matchIcon = exactMatch ? "🎯" : "📍";
     
+    // Seleciona a célula clicada
+    this.selectCell(type, cell.index);
+    
     console.log(`${matchType} NA CÉLULA:`, {
       tipo: type.toUpperCase(),
       indice: cell.index,
@@ -87,7 +90,54 @@ export class CellInteractionSystem {
     // Log resumido mais limpo
     const status = cell.occupiedBy ? `Ocupada por jogador ${cell.occupiedBy}` : "Livre";
     const precision = exactMatch ? "EXATO" : "PRÓXIMO";
-    console.log(`${matchIcon} Célula ${type} #${cell.index} (${status}) - ${precision}`);
+    console.log(`${matchIcon} Célula ${type} #${cell.index} (${status}) - ${precision} - ✨ SELECIONADA`);
+  }
+
+  // Seleciona uma célula específica
+  selectCell(type, index) {
+    if (!this.trackEntity) return;
+    
+    const track = this.trackEntity.getComponent(Track);
+    const previousSelection = track.selectedCellId;
+    
+    // Atualiza a seleção
+    track.selectedCellId = { type, index };
+    
+    // Log da mudança de seleção
+    if (previousSelection) {
+      console.log(`🔄 Seleção mudou: ${previousSelection.type}[${previousSelection.index}] → ${type}[${index}]`);
+    } else {
+      console.log(`✨ Primeira seleção: ${type}[${index}]`);
+    }
+  }
+
+  // Desseleciona a célula atual
+  deselectCell() {
+    if (!this.trackEntity) return;
+    
+    const track = this.trackEntity.getComponent(Track);
+    if (track.selectedCellId) {
+      console.log(`❌ Desselecionando célula: ${track.selectedCellId.type}[${track.selectedCellId.index}]`);
+      track.selectedCellId = null;
+    }
+  }
+
+  // Verifica se uma célula está selecionada
+  isCellSelected(type, index) {
+    if (!this.trackEntity) return false;
+    
+    const track = this.trackEntity.getComponent(Track);
+    return track.selectedCellId && 
+           track.selectedCellId.type === type && 
+           track.selectedCellId.index === index;
+  }
+
+  // Obtém a célula atualmente selecionada
+  getSelectedCell() {
+    if (!this.trackEntity) return null;
+    
+    const track = this.trackEntity.getComponent(Track);
+    return track.selectedCellId;
   }
 
   screenToWorld(screenX, screenY) {

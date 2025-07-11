@@ -9,7 +9,7 @@ export class InnerBoundaryRenderer {
   }
 
   // Renderiza o preenchimento das células usando as linhas centrais azuis
-  renderCellBackgroundWithBasePoints(baseBoundaryLinesData, cellIndex, azulPoints, centralPoints) {
+  renderCellBackgroundWithBasePoints(baseBoundaryLinesData, cellIndex, azulPoints, centralPoints, selectedCellId = null) {
     const ctx = this.ctx;
     
     // Para a primeira faixa, cada célula corresponde diretamente a uma célula da linha central
@@ -17,8 +17,17 @@ export class InnerBoundaryRenderer {
     
     if (!currentCellBoundary) return;
     
+    // Verifica se esta célula está selecionada
+    const isSelected = selectedCellId && 
+                      selectedCellId.type === 'inner' && 
+                      selectedCellId.index === cellIndex;
+    
     // Define a cor de preenchimento para a célula específica
-    ctx.fillStyle = "rgba(0, 0, 255, 0.2)"; // Cor azul temporária para teste
+    if (isSelected) {
+      ctx.fillStyle = "rgba(255, 255, 0, 0.6)"; // Cor amarela brilhante para célula selecionada
+    } else {
+      ctx.fillStyle = trackColorConfig.useUniformColor ? "rgba(210, 210, 210, 1)" : "rgba(0, 0, 255, 0.2)"; // Cor azul normal
+    }
     
     // Calcula a linha perpendicular correspondente da azul boundary
     const currentAzulPoint = azulPoints[cellIndex];
@@ -54,6 +63,13 @@ export class InnerBoundaryRenderer {
     // 4. Fecha o polígono
     ctx.closePath();
     ctx.fill();
+    
+    // Adiciona borda extra se selecionada
+    if (isSelected) {
+      ctx.strokeStyle = "rgba(255, 215, 0, 0.8)"; // Cor dourada para a borda
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
   }
 
   // Calcula múltiplos pontos ao longo de uma curva de Bézier
@@ -187,14 +203,14 @@ export class InnerBoundaryRenderer {
     ctx.stroke();
   }
 
-  render(points, outerPoints = null, baseBoundaryLinesData = null) {
+  render(points, outerPoints = null, baseBoundaryLinesData = null, selectedCellId = null) {
     // 1. Primeiro calcula os pontos finais das linhas perpendiculares (azul boundary)
     const calculatedOuterPoints = this.calculatePerpendicularLinesEndPoints(points);
     
     // 2. Renderiza o preenchimento das células usando as linhas centrais azuis do base
     if (baseBoundaryLinesData) {
       for (let i = 0; i < baseBoundaryLinesData.length; i++) {
-        this.renderCellBackgroundWithBasePoints(baseBoundaryLinesData, i, calculatedOuterPoints, points);
+        this.renderCellBackgroundWithBasePoints(baseBoundaryLinesData, i, calculatedOuterPoints, points, selectedCellId);
       }
     }
     
@@ -218,7 +234,7 @@ export class InnerBoundaryRenderer {
     // Retorna os pontos da curva de fronteira E os dados das linhas azuis para uso pela próxima faixa
     return {
       boundaryPoints: calculatedOuterPoints,
-      boundaryLinesData: boundaryLinesData
+      boundaryLinesData: boundaryLinesData || []
     };
   }
 } 

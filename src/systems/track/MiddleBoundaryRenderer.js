@@ -8,7 +8,7 @@ export class MiddleBoundaryRenderer {
   }
 
   // Renderiza o preenchimento das células usando as linhas azuis do inner boundary
-  renderCellBackgroundWithInnerBoundaries(innerBoundaryLinesData, cellIndex, roxaPoints, azulPoints) {
+  renderCellBackgroundWithInnerBoundaries(innerBoundaryLinesData, cellIndex, roxaPoints, azulPoints, selectedCellId = null) {
     // if (cellIndex !== 0) return; // Por enquanto, processa apenas a célula 0
     
     const ctx = this.ctx;
@@ -22,8 +22,17 @@ export class MiddleBoundaryRenderer {
     
     if (!currentCellBoundary || !nextCellBoundary) return;
     
+    // Verifica se esta célula está selecionada
+    const isSelected = selectedCellId && 
+                      selectedCellId.type === 'middle' && 
+                      selectedCellId.index === cellIndex;
+    
     // Define a cor de preenchimento para a célula específica
-    ctx.fillStyle = "rgba(0, 255, 0, 0.2)"; // Cor verde temporária para teste
+    if (isSelected) {
+      ctx.fillStyle = "rgba(255, 255, 0, 0.6)"; // Cor amarela brilhante para célula selecionada
+    } else {
+      ctx.fillStyle = ctx.fillStyle = trackColorConfig.useUniformColor ? "rgba(210, 210, 210, 1)" :"rgba(0, 255, 0, 0.2)"; // Cor verde normal
+    }
     
     // Calcula a linha perpendicular correspondente da roxa boundary
     const currentRoxaPoint = roxaPoints[cellIndex];
@@ -66,6 +75,13 @@ export class MiddleBoundaryRenderer {
     // 5. Fecha o polígono
     ctx.closePath();
     ctx.fill();
+    
+    // Adiciona borda extra se selecionada
+    if (isSelected) {
+      ctx.strokeStyle = "rgba(255, 215, 0, 0.8)"; // Cor dourada para a borda
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
   }
 
   // Calcula múltiplos pontos ao longo de uma curva de Bézier
@@ -339,14 +355,14 @@ export class MiddleBoundaryRenderer {
     ctx.stroke();
   }
 
-  render(outerPoints, outerMostPoints = null, innerBoundaryLinesData = null) {
+  render(outerPoints, outerMostPoints = null, innerBoundaryLinesData = null, selectedCellId = null) {
     // 1. Primeiro calcula os pontos finais das linhas perpendiculares (roxa boundary)
     const calculatedOuterMostPoints = this.calculatePerpendicularLinesEndPoints(outerPoints);
     
-    // 2. Renderiza o preenchimento das células usando as linhas azuis do inner boundary
+    // 2. Renderiza o preenchimento das células usando as linhas azuis do inner boundary  
     if (innerBoundaryLinesData) {
       for (let i = 0; i < innerBoundaryLinesData.length; i++) {
-        this.renderCellBackgroundWithInnerBoundaries(innerBoundaryLinesData, i, calculatedOuterMostPoints, outerPoints);
+        this.renderCellBackgroundWithInnerBoundaries(innerBoundaryLinesData, i, calculatedOuterMostPoints, outerPoints, selectedCellId);
       }
     }
     

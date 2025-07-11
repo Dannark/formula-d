@@ -30,6 +30,7 @@ export class TrackRenderSystem {
 
   renderTrack(track) {
     const points = track.points;
+    const selectedCellId = track.selectedCellId; // Obtém informações da célula selecionada
 
     // Inicializa os dados das células se ainda não existirem ou se o número de pontos mudou
     if (!track.trackCells.inner.length || track.trackCells.inner.length !== points.length) {
@@ -47,23 +48,23 @@ export class TrackRenderSystem {
     const baseBoundaryLinesData = baseRenderResult.boundaryLinesData || [];
 
     // Desenha a primeira faixa (entre linha central e inner boundary)
-    const innerRenderResult = this.innerBoundaryRenderer.render(points, innerPoints, baseBoundaryLinesData);
+    const innerRenderResult = this.innerBoundaryRenderer.render(points, innerPoints, baseBoundaryLinesData, selectedCellId);
     const innerBoundaryLinesData = innerRenderResult.boundaryLinesData || [];
 
     // Atualiza os dados das células da faixa inner usando os pontos reais das boundaries
-    this.updateInnerCellsData(track.trackCells.inner, points, innerPoints);
+    // this.updateInnerCellsData(track.trackCells.inner, points, innerPoints);
 
     // Desenha a segunda faixa (entre inner boundary e middle boundary)
-    const middleRenderResult = this.middleBoundaryRenderer.render(innerPoints, middlePoints, innerBoundaryLinesData);
+    // const middleRenderResult = this.middleBoundaryRenderer.render(innerPoints, middlePoints, innerBoundaryLinesData, selectedCellId);
 
     // Atualiza os dados das células da faixa middle usando os pontos reais das boundaries
-    this.updateMiddleCellsData(track.trackCells.middle, innerPoints, middlePoints);
+    // this.updateMiddleCellsData(track.trackCells.middle, innerPoints, middlePoints);
 
     // Desenha a terceira faixa (entre middle boundary e outer boundary)
-    const outerResult = this.outerBoundaryRenderer.render(middlePoints, innerPoints, outerPoints, middleRenderResult.boundaryLinesData);
+    // const outerResult = this.outerBoundaryRenderer.render(middlePoints, innerPoints, outerPoints, middleRenderResult.boundaryLinesData, selectedCellId);
 
     // Atualiza os dados das células da faixa outer usando os pontos reais das boundaries
-    this.updateOuterCellsData(track.trackCells.outer, middlePoints, outerPoints);
+    // this.updateOuterCellsData(track.trackCells.outer, middlePoints, outerPoints);
   }
 
   // Atualiza os dados das células da faixa inner (azul) usando boundaries reais

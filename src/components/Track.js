@@ -9,5 +9,8 @@ export class Track {
       middle: [],  // Faixa verde (segunda) 
       outer: []    // Faixa rosa/amarela (terceira/quarta)
     };
+    
+    // Célula atualmente selecionada
+    this.selectedCellId = null; // { type: 'inner|middle|outer', index: number }
   }
 }

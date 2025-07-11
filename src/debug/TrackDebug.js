@@ -510,6 +510,29 @@ generateDirectionalTrack({ stepSize: 80, explorationSteps: 15 })
   `);
 }
 
+function generateCustomTrack(options = {}) {
+  console.log('🎯 Gerando pista CUSTOMIZADA...');
+  
+  const defaultOptions = {
+    stepSize: 100,
+    explorationSteps: 10,
+    straightStartSteps: 6,
+    ...options
+  };
+  
+  // Chama diretamente o gerador sem passar pelo sistema de avaliação
+  const newPoints = generator.customGenerator.generateDirectionalTrack(defaultOptions);
+  
+  if (newPoints && newPoints.length > 0) {
+    updateTrackPoints(newPoints);
+    console.log(`✅ Pista direcional gerada com ${newPoints.length} pontos`);
+  } else {
+    console.log('❌ Falha ao gerar pista direcional');
+  }
+  
+  return newPoints;
+}
+
 // Expõe as funções globalmente no console
 window.generateCircularTrack = generateCircularTrack;
 window.generateDirectionalTrack = generateDirectionalTrack;
@@ -520,6 +543,7 @@ window.generateOvalTrack = generateOvalTrack;
 window.generateFigureEightTrack = generateFigureEightTrack;
 window.generateComplexTrack = generateComplexTrack;
 window.generateRandomTrack = generateRandomTrack;
+window.generateCustomTrack = generateCustomTrack;
 // Novas funções skeleton
 window.generateSkeletonTrack = generateSkeletonTrack;
 window.generateSkeletonSimple = generateSkeletonSimple;

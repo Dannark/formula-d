@@ -1,3 +1,4 @@
+import { CustomGenerator } from './CustomGenerator.js';
 import { DirectionalGenerator } from './DirectionalGenerator.js';
 import { PerlinNoiseGenerator } from './PerlinNoiseGenerator.js';
 import { SkeletonTrackGenerator } from './SkeletonTrackGenerator.js';
@@ -7,6 +8,7 @@ export class TrackGenerator {
     this.directionalGenerator = new DirectionalGenerator(seed);
     this.perlinGenerator = new PerlinNoiseGenerator(seed);
     this.skeletonGenerator = new SkeletonTrackGenerator(seed);
+    this.customGenerator = new CustomGenerator();
   }
 
   // === GERADORES DIRECIONAIS ===
@@ -75,6 +77,11 @@ export class TrackGenerator {
   // Gera uma pista circular simples como fallback
   generateSimpleCircle(options = {}) {
     return this.perlinGenerator.generateSimpleCircle(options);
+  }
+
+  // Gera uma pista direcional customizada
+  generateCustomTrack(options = {}) {
+    return this.customGenerator.generateDirectionalTrack(options);
   }
 
   // === GERADOR INTELIGENTE ===

@@ -52,19 +52,19 @@ export class TrackRenderSystem {
     const innerBoundaryLinesData = innerRenderResult.boundaryLinesData || [];
 
     // Atualiza os dados das células da faixa inner usando os pontos reais das boundaries
-    // this.updateInnerCellsData(track.trackCells.inner, points, innerPoints);
+    this.updateInnerCellsData(track.trackCells.inner, points, innerPoints);
 
     // Desenha a segunda faixa (entre inner boundary e middle boundary)
-    // const middleRenderResult = this.middleBoundaryRenderer.render(innerPoints, middlePoints, innerBoundaryLinesData, selectedCellId);
+    const middleRenderResult = this.middleBoundaryRenderer.render(innerPoints, middlePoints, innerBoundaryLinesData, selectedCellId);
 
     // Atualiza os dados das células da faixa middle usando os pontos reais das boundaries
-    // this.updateMiddleCellsData(track.trackCells.middle, innerPoints, middlePoints);
+    this.updateMiddleCellsData(track.trackCells.middle, innerPoints, middlePoints);
 
     // Desenha a terceira faixa (entre middle boundary e outer boundary)
-    // const outerResult = this.outerBoundaryRenderer.render(middlePoints, innerPoints, outerPoints, middleRenderResult.boundaryLinesData, selectedCellId);
+    const outerResult = this.outerBoundaryRenderer.render(middlePoints, innerPoints, outerPoints, middleRenderResult.boundaryLinesData, selectedCellId);
 
     // Atualiza os dados das células da faixa outer usando os pontos reais das boundaries
-    // this.updateOuterCellsData(track.trackCells.outer, middlePoints, outerPoints);
+    this.updateOuterCellsData(track.trackCells.outer, middlePoints, outerPoints);
   }
 
   // Atualiza os dados das células da faixa inner (azul) usando boundaries reais

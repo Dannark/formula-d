@@ -18,10 +18,11 @@ export class CustomGenerator {
       centerX = window.innerWidth / 2,
       centerY = window.innerHeight / 2,
       stepSize = 100, // Tamanho do passo (distância entre pontos)
-      explorationSteps = 10, // Número de passos de exploração
+      explorationSteps = 10, // Mantido para compatibilidade (agora usado como fallback)
+      numberOfRandomActions = 13, // NOVO: Número de ações aleatórias a executar
       straightStartSteps = 6, // Número de passos retos iniciais (área de largada)
-      leftTurnAngleRange = { min: 20 * Math.PI / 180, max: 35 * Math.PI / 180 },  // 25-40 graus para esquerda (mais variado)
-      rightTurnAngleRange = { min: 30 * Math.PI / 180, max: 65 * Math.PI / 180 }, // 30-75 graus para direita (mais variado)
+      leftTurnAngleRange = { min: 20 * Math.PI / 180, max: 35 * Math.PI / 180 },  // 25-40 graus para esquerda
+      rightTurnAngleRange = { min: 30 * Math.PI / 180, max: 65 * Math.PI / 180 }, // 30-75 graus para direita
       initialDirection = null // Direção inicial (null = aleatória)
     } = options;
 
@@ -35,7 +36,7 @@ export class CustomGenerator {
       startPoint,
       selectedDirection,
       stepSize,
-      explorationSteps,
+      numberOfRandomActions, // Passa o número de ações ao invés de explorationSteps
       straightStartSteps,
       leftTurnAngleRange,
       rightTurnAngleRange,
@@ -53,44 +54,236 @@ export class CustomGenerator {
     return completePath;
   }
 
-  generateExplorationPhase(startPoint, initialDirection, stepSize, explorationSteps, straightStartSteps, leftTurnAngleRange, rightTurnAngleRange) {
+  generateExplorationPhase(startPoint, initialDirection, stepSize, numberOfRandomActions, straightStartSteps, leftTurnAngleRange, rightTurnAngleRange) {
     const path = [startPoint];
-
     let currentDirection = initialDirection;
     let currentPoint = startPoint;
-
-    for (let i = 0; i < explorationSteps; i++) {
+    let lastAction = null; // Rastreia a última ação executada
+    
+    // Fase inicial: alguns passos retos para área de largada
+    for (let i = 0; i < straightStartSteps; i++) {
       const nextPoint = this.calculateNextPoint(currentPoint, currentDirection, stepSize);
       path.push(nextPoint);
       currentPoint = nextPoint;
     }
-
-    for (let i = 0; i < 3; i++) {
-      const nextPoint = this.calculateNextPoint(currentPoint, -(Math.PI / 2)/2, stepSize);
-      path.push(nextPoint);
-      currentPoint = nextPoint;
+    
+    // Fase de exploração aleatória - agora baseada no NÚMERO DE AÇÕES
+    let actionsExecuted = 0;
+    const maxAttempts = 5; // Máximo de tentativas para evitar loop infinito
+    
+    console.log(`[DEBUG] Iniciando exploração aleatória: ${numberOfRandomActions} ações planejadas`);
+    
+    while (actionsExecuted < numberOfRandomActions) {
+      // Escolhe uma ação aleatória, evitando FRENTE consecutivo
+      const action = this.getRandomAction(lastAction);
+      console.log(`[DEBUG] Ação ${actionsExecuted + 1}/${numberOfRandomActions} - Tentando: ${action.type} (última ação: ${lastAction || 'nenhuma'})`);
+      
+      let actionSuccessful = false;
+      let attempts = 0;
+      const availableActions = ['FRENTE', 'ESQUERDA', 'DIREITA'];
+      
+      // Se a última ação foi FRENTE, remove FRENTE das ações disponíveis no fallback também
+      if (lastAction === 'FRENTE') {
+        const frenteIndex = availableActions.indexOf('FRENTE');
+        if (frenteIndex > -1) {
+          availableActions.splice(frenteIndex, 1);
+        }
+      }
+      
+      // Tenta a ação escolhida e fallback se houver cruzamento
+      while (!actionSuccessful && attempts < maxAttempts && availableActions.length > 0) {
+        const currentAction = attempts === 0 ? action.type : availableActions[Math.floor(Math.random() * availableActions.length)];
+        
+        let newSegment = null;
+        let newDirection = currentDirection;
+        
+        switch (currentAction) {
+          case 'FRENTE':
+            const straightSteps = Math.floor(Math.random() * 6) + 3; // 5-15 células
+            newSegment = this.generateStraightSegment(currentPoint, currentDirection, stepSize, straightSteps);
+            break;
+            
+          case 'ESQUERDA':
+            const leftCurve = this.generateCurveSegment(
+              currentPoint, 
+              currentDirection, 
+              stepSize, 
+              'left',
+              leftTurnAngleRange
+            );
+            newSegment = leftCurve.path;
+            newDirection = leftCurve.finalDirection;
+            break;
+            
+          case 'DIREITA':
+            const rightCurve = this.generateCurveSegment(
+              currentPoint, 
+              currentDirection, 
+              stepSize, 
+              'right',
+              rightTurnAngleRange
+            );
+            newSegment = rightCurve.path;
+            newDirection = rightCurve.finalDirection;
+            break;
+        }
+        
+        // Verifica se há cruzamento com o caminho existente
+        if (newSegment && !this.checkSelfIntersection(path, newSegment)) {
+          // Sem cruzamento! Adiciona o segmento
+          path.push(...newSegment.slice(1)); // Remove o primeiro ponto (duplicado)
+          currentPoint = path[path.length - 1];
+          currentDirection = newDirection;
+          lastAction = currentAction; // Atualiza a última ação executada
+          actionsExecuted++; // Incrementa o contador de AÇÕES, não pontos
+          actionSuccessful = true;
+          console.log(`[DEBUG] ✅ Ação ${currentAction} executada! (${newSegment.length - 1} pontos adicionados) - Total de ações: ${actionsExecuted}/${numberOfRandomActions}`);
+        } else {
+          // Cruzamento detectado! Remove esta ação das opções e tenta outra
+          const actionIndex = availableActions.indexOf(currentAction);
+          if (actionIndex > -1) {
+            availableActions.splice(actionIndex, 1);
+          }
+          console.log(`[DEBUG] ❌ Cruzamento detectado em ${currentAction}. Tentando outra ação...`);
+        }
+        
+        attempts++;
+      }
+      
+      // Se nenhuma ação funcionou, força um movimento reto pequeno mas CONTA como ação
+      if (!actionSuccessful) {
+        console.log('[DEBUG] 🚨 Nenhuma ação válida encontrada. Forçando movimento de emergência.');
+        const emergencySegment = this.generateStraightSegment(currentPoint, currentDirection, stepSize, 2);
+        path.push(...emergencySegment.slice(1));
+        currentPoint = path[path.length - 1];
+        lastAction = 'FRENTE'; // Ação de emergência é considerada FRENTE
+        actionsExecuted++; // Conta como uma ação executada
+        console.log(`[DEBUG] ⚠️ Ação de emergência executada - Total de ações: ${actionsExecuted}/${numberOfRandomActions}`);
+      }
     }
-
+    
+    console.log(`[DEBUG] 🏁 Exploração concluída! ${actionsExecuted} ações executadas, ${path.length} pontos totais`);
     return path;
   }
 
-  getChooseAction() {
-    const actions = [
-      { type: 'FRENTE', probability: 0.2 },
-      { type: 'DIREITA', probability: 0.5 }, 
-      { type: 'ESQUERDA', probability: 0.3 }
+  /**
+   * Escolhe uma ação aleatória com probabilidades definidas
+   * @param {string} lastAction - Última ação executada (opcional)
+   * @returns {Object} Ação escolhida
+   */
+  getRandomAction(lastAction = null) {
+    let actions = [
+      { type: 'FRENTE', probability: 0.4 },    // 40% - movimento reto
+      { type: 'ESQUERDA', probability: 0.3 },  // 30% - curva esquerda
+      { type: 'DIREITA', probability: 0.3 }    // 30% - curva direita
     ];
     
-    const totalProbability = actions.reduce((sum, action) => sum + action.probability, 0);
-    const randomValue = Math.random() * totalProbability;
+    // Se a última ação foi FRENTE, remove FRENTE das opções disponíveis
+    if (lastAction === 'FRENTE') {
+      actions = actions.filter(action => action.type !== 'FRENTE');
+      // Redistribui as probabilidades entre ESQUERDA e DIREITA
+      // Cada uma fica com 50% (0.3 + 0.2 = 0.5)
+      actions.forEach(action => {
+        action.probability = 0.5;
+      });
+      console.log('[DEBUG] 🚫 Última ação foi FRENTE - evitando repetição. Opções: ESQUERDA (50%) e DIREITA (50%)');
+    }
     
+    const randomValue = Math.random();
     let accumulatedProbability = 0;
-    const selectedAction = actions.find(action => {
+    
+    for (const action of actions) {
       accumulatedProbability += action.probability;
-      return randomValue <= accumulatedProbability;
-    }); 
+      if (randomValue <= accumulatedProbability) {
+        return action;
+      }
+    }
+    
+    return actions[0]; // Fallback
+  }
 
-    return selectedAction;
+  /**
+   * Gera um segmento reto
+   * @param {Object} startPoint - Ponto inicial
+   * @param {number} direction - Direção em radianos
+   * @param {number} stepSize - Tamanho do passo
+   * @param {number} steps - Número de passos
+   * @returns {Array} Segmento de pontos
+   */
+  generateStraightSegment(startPoint, direction, stepSize, steps) {
+    const segment = [startPoint];
+    let currentPoint = startPoint;
+    
+    for (let i = 0; i < steps; i++) {
+      const nextPoint = this.calculateNextPoint(currentPoint, direction, stepSize);
+      segment.push(nextPoint);
+      currentPoint = nextPoint;
+    }
+    
+    return segment;
+  }
+
+  /**
+   * Gera um segmento de curva
+   * @param {Object} startPoint - Ponto inicial
+   * @param {number} initialDirection - Direção inicial
+   * @param {number} stepSize - Tamanho do passo
+   * @param {string} turnDirection - 'left' ou 'right'
+   * @param {Object} angleRange - Range de ângulos {min, max}
+   * @returns {Object} {path: Array, finalDirection: number}
+   */
+  generateCurveSegment(startPoint, initialDirection, stepSize, turnDirection, angleRange) {
+    const segment = [startPoint];
+    let currentPoint = startPoint;
+    let currentDirection = initialDirection;
+    
+    // Ângulo total da curva (aleatório dentro do range)
+    const totalAngle = angleRange.min + Math.random() * (angleRange.max - angleRange.min);
+    const angleMultiplier = turnDirection === 'left' ? 1 : -1;
+    const finalAngle = totalAngle * angleMultiplier;
+    
+    // Número de passos na curva (baseado no ângulo)
+    const curveSteps = Math.max(3, Math.ceil(Math.abs(finalAngle) / (Math.PI / 8))); // Mínimo 3 passos
+    const angleIncrement = finalAngle / curveSteps;
+    
+    for (let i = 0; i < curveSteps; i++) {
+      currentDirection += angleIncrement;
+      const nextPoint = this.calculateNextPoint(currentPoint, currentDirection, stepSize);
+      segment.push(nextPoint);
+      currentPoint = nextPoint;
+    }
+    
+    return {
+      path: segment,
+      finalDirection: currentDirection
+    };
+  }
+
+  /**
+   * Verifica se um novo segmento cruza com o caminho existente
+   * @param {Array} existingPath - Caminho atual
+   * @param {Array} newSegment - Novo segmento a verificar
+   * @returns {boolean} True se há cruzamento
+   */
+  checkSelfIntersection(existingPath, newSegment) {
+    const minDistance = 80; // Distância mínima para considerar cruzamento
+    
+    // Verifica cada ponto do novo segmento contra o caminho existente
+    for (let i = 1; i < newSegment.length; i++) { // Começa em 1 para pular o ponto inicial
+      const newPoint = newSegment[i];
+      
+      // Verifica contra todos os pontos do caminho existente (exceto os últimos 3 para evitar falsos positivos)
+      for (let j = 0; j < existingPath.length - 3; j++) {
+        const existingPoint = existingPath[j];
+        const distance = this.calculateDistance(newPoint, existingPoint);
+        
+        if (distance < minDistance) {
+          return true; // Cruzamento detectado
+        }
+      }
+    }
+    
+    return false; // Sem cruzamento
   }
 
   generateReturnPhase(explorationPath, initialDirection, stepSize, startPoint, leftTurnAngleRange, rightTurnAngleRange) {
@@ -219,7 +412,7 @@ export class CustomGenerator {
    */
   generateClockwiseWaypoints(start, target, bounds) {
     const waypoints = [];
-    const proximityThreshold = 300; // Distância para parar
+    const proximityThreshold = 100; // Distância para parar
     
     // Define os pontos de canto em ordem horária
     const corners = {

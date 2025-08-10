@@ -173,19 +173,26 @@ export class MainScene extends Scene {
       "pontos"
     );
     
-    // Cria a entidade do jogador
-    const playerEntity = new Entity().addComponent(
-      new Player(0, "inner", 0, "#FF0000", 1) // Inicia na célula 0 da faixa interna, apontando para a direita
+    // Cria a entidade do jogador 1 (vermelho)
+    const player1Entity = new Entity().addComponent(
+      new Player(0, "inner", 0, "#FF0000", 1) // Inicia na célula 0 da faixa interna
     );
-    this.world.addEntity(playerEntity);
-    console.log("🏎️ Jogador criado na célula 0 (faixa interna)");
+    this.world.addEntity(player1Entity);
+    console.log("🏎️ Jogador 1 (vermelho) criado na célula 0 (faixa interna)");
+    
+    // Cria a entidade do jogador 2 (azul)
+    const player2Entity = new Entity().addComponent(
+      new Player(1, "inner", 0, "#0000FF", 2) // Inicia na célula 1 da faixa interna
+    );
+    this.world.addEntity(player2Entity);
+    console.log("🏎️ Jogador 2 (azul) criado na célula 1 (faixa interna)");
     
     // Cria a entidade do dado
     const diceEntity = new Entity().addComponent(
       new Dice(1, false, 6) // Dado de 6 faces, valor inicial 1
     );
     this.world.addEntity(diceEntity);
-    console.log("🎲 Dado criado - Pressione ESPAÇO para rolar!");
+    console.log("🎲 Dado criado - Pressione ESPAÇO para rolar! (Turno do Jogador 1)");
     
     // Atualiza os pontos da pista quando a janela é redimensionada
     window.addEventListener("resize", () => {

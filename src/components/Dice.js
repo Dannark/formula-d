@@ -4,5 +4,6 @@ export class Dice {
     this.isRolling = isRolling;        // Se está rolando (para animação futura)
     this.diceType = diceType;          // Tipo do dado (6 faces por padrão)
     this.lastRollTime = 0;             // Timestamp da última rolagem
+    this.currentPlayerTurn = 1;        // Turno atual do jogador (1, 2, 3, ...)
   }
 }
